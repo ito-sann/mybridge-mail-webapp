@@ -7,131 +7,198 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
+    <input id="csvFile" class="visually-hidden" type="file" accept=".csv,text/csv">
+
     <div class="app-shell">
       <header class="topbar">
-        <div>
+        <div class="brand-block">
           <p class="eyebrow">myBridge CSV</p>
           <h1>名刺メール作成</h1>
         </div>
         <div class="topbar-actions">
-          <label class="icon-button file-button" title="CSVを読み込む">
-            <span aria-hidden="true">+</span>
-            <input id="csvFile" type="file" accept=".csv,text/csv">
-          </label>
-          <button id="loadSampleButton" class="icon-button" type="button" title="サンプルを読み込む">S</button>
-          <button id="exportButton" class="icon-button" type="button" title="CSVを書き出す">↓</button>
+          <button id="importButton" class="secondary-button" type="button">CSVを読み込む</button>
+          <button id="loadSampleButton" class="secondary-button" type="button">サンプルで試す</button>
+          <button id="exportButton" class="secondary-button" type="button">編集結果を保存</button>
         </div>
       </header>
 
-      <main class="workspace">
-        <section class="left-pane" aria-label="名刺一覧">
-          <div class="toolbar">
-            <label class="search-box">
-              <span aria-hidden="true">⌕</span>
-              <input id="searchInput" type="search" placeholder="氏名・会社名・メモで検索">
-            </label>
-            <select id="categoryFilter" aria-label="分類で絞り込み">
-              <option value="all">すべて</option>
-              <option value="fuei">風営法</option>
-              <option value="construction">建設業</option>
-              <option value="subsidy">補助金</option>
-              <option value="referral">連携</option>
-              <option value="general">一般</option>
-            </select>
-          </div>
-
-          <div class="summary-grid" aria-label="集計">
-            <div class="metric">
-              <span class="metric-label">総数</span>
-              <strong id="totalCount">0</strong>
+      <main class="app-main">
+        <section class="workflow-panel" aria-label="進行状況">
+          <div class="stepper" aria-label="作業ステップ">
+            <div id="stepImport" class="step is-active">
+              <span class="step-number">1</span>
+              <span>CSV読込</span>
             </div>
-            <div class="metric">
-              <span class="metric-label">未処理</span>
-              <strong id="pendingCount">0</strong>
+            <div id="stepReview" class="step">
+              <span class="step-number">2</span>
+              <span>文面確認</span>
             </div>
-            <div class="metric">
-              <span class="metric-label">作成済</span>
-              <strong id="draftCount">0</strong>
-            </div>
-            <div class="metric">
-              <span class="metric-label">対象外</span>
-              <strong id="blockedCount">0</strong>
+            <div id="stepSend" class="step">
+              <span class="step-number">3</span>
+              <span>Gmailで送る</span>
             </div>
           </div>
-
-          <div id="contactList" class="contact-list" aria-live="polite"></div>
+          <div class="next-action">
+            <span class="next-label">次にやること</span>
+            <strong id="nextActionText">CSVを読み込むか、サンプルで試してください。</strong>
+          </div>
         </section>
 
-        <section class="right-pane" aria-label="メール編集">
-          <div id="emptyState" class="empty-state">
-            <h2>CSVを読み込むと、ここに文面が出ます。</h2>
-            <p>myBridgeから出したCSVをそのまま読み込めます。まずは右上の + か S を押してください。</p>
+        <section id="startPanel" class="start-panel">
+          <div class="start-copy">
+            <p class="category-pill">CSVからメール作成</p>
+            <h2>名刺データを読み込んで、相手ごとの挨拶メールを作れます。</h2>
+            <div class="start-actions">
+              <button id="heroImportButton" class="primary-button" type="button">myBridge CSVを読み込む</button>
+              <button id="heroSampleButton" class="secondary-button" type="button">サンプルで試す</button>
+            </div>
           </div>
+          <div class="start-steps" aria-label="流れ">
+            <div class="start-step">
+              <strong>1. 読み込む</strong>
+              <span>myBridgeのCSVを選択</span>
+            </div>
+            <div class="start-step">
+              <strong>2. 確認する</strong>
+              <span>分類・メモ・文面を調整</span>
+            </div>
+            <div class="start-step">
+              <strong>3. 開く</strong>
+              <span>Gmail作成画面で最終確認</span>
+            </div>
+          </div>
+        </section>
 
-          <article id="editorPanel" class="editor-panel" hidden>
-            <div class="editor-header">
+        <section id="workspace" class="workspace" hidden>
+          <aside class="left-pane" aria-label="名刺一覧">
+            <div class="pane-heading">
               <div>
-                <p id="selectedCategory" class="category-pill">一般</p>
-                <h2 id="selectedName">選択なし</h2>
-                <p id="selectedMeta" class="selected-meta"></p>
+                <p class="eyebrow">Contacts</p>
+                <h2>名刺一覧</h2>
               </div>
-              <label class="toggle-row">
-                <input id="excludeToggle" type="checkbox">
-                <span>配信停止</span>
-              </label>
+              <span id="contactCountLabel" class="count-label">0件</span>
             </div>
 
-            <div class="field-grid">
-              <label>
-                <span>出会った場所</span>
-                <input id="metAtInput" type="text" autocomplete="off">
+            <div class="toolbar">
+              <label class="search-box">
+                <span aria-hidden="true">検索</span>
+                <input id="searchInput" type="search" placeholder="氏名・会社名・メモ">
               </label>
-              <label>
-                <span>紹介者</span>
-                <input id="referrerInput" type="text" autocomplete="off">
-              </label>
-              <label>
-                <span>見込み業務</span>
-                <select id="serviceInput">
-                  <option value="">自動判定</option>
-                  <option value="風営法">風営法</option>
-                  <option value="建設業許可">建設業許可</option>
-                  <option value="補助金">補助金</option>
-                  <option value="士業連携">士業連携</option>
-                  <option value="一般挨拶">一般挨拶</option>
-                </select>
-              </label>
-              <label>
-                <span>ステータス</span>
-                <select id="statusInput">
-                  <option value="">未処理</option>
-                  <option value="下書き作成済み">下書き作成済み</option>
-                  <option value="送信済み">送信済み</option>
-                  <option value="対象外">対象外</option>
-                </select>
-              </label>
+              <select id="categoryFilter" aria-label="分類で絞り込み">
+                <option value="all">すべて</option>
+                <option value="fuei">風営法</option>
+                <option value="construction">建設業</option>
+                <option value="subsidy">補助金</option>
+                <option value="referral">連携</option>
+                <option value="general">一般</option>
+              </select>
             </div>
 
-            <label class="memo-field">
-              <span>メモ</span>
-              <textarea id="memoInput" rows="3"></textarea>
-            </label>
-
-            <label class="mail-field">
-              <span>件名</span>
-              <input id="subjectInput" type="text">
-            </label>
-            <label class="mail-field">
-              <span>本文</span>
-              <textarea id="bodyInput" rows="16"></textarea>
-            </label>
-
-            <div class="action-row">
-              <button id="regenerateButton" class="secondary-button" type="button">再生成</button>
-              <button id="copyButton" class="secondary-button" type="button">コピー</button>
-              <button id="gmailButton" class="primary-button" type="button">Gmailで開く</button>
+            <div class="summary-grid" aria-label="集計">
+              <div class="metric">
+                <span class="metric-label">総数</span>
+                <strong id="totalCount">0</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">未処理</span>
+                <strong id="pendingCount">0</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">作成済</span>
+                <strong id="draftCount">0</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">対象外</span>
+                <strong id="blockedCount">0</strong>
+              </div>
             </div>
-          </article>
+
+            <div id="contactList" class="contact-list" aria-live="polite"></div>
+          </aside>
+
+          <section class="right-pane" aria-label="メール作成">
+            <article id="editorPanel" class="editor-panel" hidden>
+              <header class="editor-header">
+                <div>
+                  <p id="selectedCategory" class="category-pill">一般</p>
+                  <h2 id="selectedName">選択なし</h2>
+                  <p id="selectedMeta" class="selected-meta"></p>
+                </div>
+                <label class="toggle-row">
+                  <input id="excludeToggle" type="checkbox">
+                  <span>配信停止</span>
+                </label>
+              </header>
+
+              <div id="riskList" class="risk-list" aria-live="polite"></div>
+
+              <div class="settings-grid">
+                <label>
+                  <span>分類</span>
+                  <select id="serviceInput">
+                    <option value="">自動判定</option>
+                    <option value="fuei">風営法の見込み客</option>
+                    <option value="construction">建設業許可の見込み客</option>
+                    <option value="subsidy">補助金の見込み客</option>
+                    <option value="referral">士業・紹介者</option>
+                    <option value="general">一般挨拶</option>
+                  </select>
+                </label>
+                <label>
+                  <span>文体</span>
+                  <select id="toneInput">
+                    <option value="polite">丁寧</option>
+                    <option value="warm">やわらかめ</option>
+                    <option value="short">短め</option>
+                    <option value="referral">紹介お願い寄り</option>
+                  </select>
+                </label>
+                <label>
+                  <span>出会った場所</span>
+                  <input id="metAtInput" type="text" autocomplete="off">
+                </label>
+                <label>
+                  <span>紹介者</span>
+                  <input id="referrerInput" type="text" autocomplete="off">
+                </label>
+                <label>
+                  <span>ステータス</span>
+                  <select id="statusInput">
+                    <option value="">未処理</option>
+                    <option value="下書き作成済み">下書き作成済み</option>
+                    <option value="送信済み">送信済み</option>
+                    <option value="対象外">対象外</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="memo-field">
+                <span>メモ</span>
+                <textarea id="memoInput" rows="3"></textarea>
+              </label>
+
+              <section class="mail-composer" aria-label="メール本文">
+                <label class="mail-row">
+                  <span>To</span>
+                  <input id="emailInput" type="email" autocomplete="off">
+                </label>
+                <label class="mail-row">
+                  <span>Subject</span>
+                  <input id="subjectInput" type="text">
+                </label>
+                <label class="mail-body">
+                  <span>Body</span>
+                  <textarea id="bodyInput" rows="16"></textarea>
+                </label>
+              </section>
+
+              <div class="action-row">
+                <button id="regenerateButton" class="secondary-button" type="button">文面を再生成</button>
+                <button id="copyButton" class="secondary-button" type="button">文面をコピー</button>
+                <button id="gmailButton" class="primary-button" type="button">Gmailで開く</button>
+              </div>
+            </article>
+          </section>
         </section>
       </main>
     </div>

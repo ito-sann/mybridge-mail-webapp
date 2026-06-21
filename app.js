@@ -26,6 +26,13 @@ const CATEGORY_SUBJECTS = {
   general: '名刺交換',
 };
 
+const TONE_LABELS = {
+  polite: '丁寧',
+  warm: 'やわらかめ',
+  short: '短め',
+  referral: '紹介お願い寄り',
+};
+
 const state = {
   contacts: [],
   selectedId: null,
@@ -35,24 +42,36 @@ const state = {
 
 const els = {
   csvFile: document.getElementById('csvFile'),
+  importButton: document.getElementById('importButton'),
+  heroImportButton: document.getElementById('heroImportButton'),
   loadSampleButton: document.getElementById('loadSampleButton'),
+  heroSampleButton: document.getElementById('heroSampleButton'),
   exportButton: document.getElementById('exportButton'),
+  startPanel: document.getElementById('startPanel'),
+  workspace: document.getElementById('workspace'),
+  stepImport: document.getElementById('stepImport'),
+  stepReview: document.getElementById('stepReview'),
+  stepSend: document.getElementById('stepSend'),
+  nextActionText: document.getElementById('nextActionText'),
   searchInput: document.getElementById('searchInput'),
   categoryFilter: document.getElementById('categoryFilter'),
+  contactCountLabel: document.getElementById('contactCountLabel'),
   totalCount: document.getElementById('totalCount'),
   pendingCount: document.getElementById('pendingCount'),
   draftCount: document.getElementById('draftCount'),
   blockedCount: document.getElementById('blockedCount'),
   contactList: document.getElementById('contactList'),
-  emptyState: document.getElementById('emptyState'),
   editorPanel: document.getElementById('editorPanel'),
   selectedCategory: document.getElementById('selectedCategory'),
   selectedName: document.getElementById('selectedName'),
   selectedMeta: document.getElementById('selectedMeta'),
+  riskList: document.getElementById('riskList'),
   excludeToggle: document.getElementById('excludeToggle'),
+  emailInput: document.getElementById('emailInput'),
   metAtInput: document.getElementById('metAtInput'),
   referrerInput: document.getElementById('referrerInput'),
   serviceInput: document.getElementById('serviceInput'),
+  toneInput: document.getElementById('toneInput'),
   statusInput: document.getElementById('statusInput'),
   memoInput: document.getElementById('memoInput'),
   subjectInput: document.getElementById('subjectInput'),
@@ -125,6 +144,7 @@ function rowsToContacts(rows) {
       record[header] = row[headerIndex] || '';
     });
 
+    const serviceNeed = firstValue(record, ['見込み業務']);
     const contact = {
       id: crypto.randomUUID ? crypto.randomUUID() : `contact-${Date.now()}-${index}`,
       name: firstValue(record, ['氏名', '名前', '姓名', 'Name']),
@@ -136,16 +156,17 @@ function rowsToContacts(rows) {
       memo: firstValue(record, ['メモ', 'Memo', '備考']),
       metAt: firstValue(record, ['出会った場所']),
       referrer: firstValue(record, ['紹介者']),
-      serviceNeed: firstValue(record, ['見込み業務']),
+      categoryOverride: categoryFromText(serviceNeed),
+      tone: toneFromText(firstValue(record, ['文体', 'トーン'])) || 'polite',
       status: firstValue(record, ['送信ステータス']),
       blocked: parseBoolean(firstValue(record, ['配信停止'])),
-      subject: '',
-      body: '',
+      subject: firstValue(record, ['件名']),
+      body: firstValue(record, ['本文']),
     };
 
-    const generated = buildEmail(contact);
-    contact.subject = generated.subject;
-    contact.body = generated.body;
+    if (!contact.subject || !contact.body) {
+      regenerateEmail(contact);
+    }
     return contact;
   }).filter((contact) => contact.name || contact.company || contact.email);
 }
@@ -154,36 +175,53 @@ function parseBoolean(value) {
   return ['true', '1', 'yes', 'y', '済', 'チェック', '配信停止'].includes(String(value).trim().toLowerCase());
 }
 
-function detectCategory(contact) {
-  const text = [
-    contact.group,
-    contact.memo,
-    contact.metAt,
-    contact.serviceNeed,
-  ].join(' ');
-
+function categoryFromText(value) {
+  const text = String(value || '');
+  if (!text) return '';
   if (/(風営|深夜|酒類|バー|スナック|飲食|店舗|開業)/.test(text)) return 'fuei';
   if (/(建設|建築|工事|解体|電気|管工事|内装)/.test(text)) return 'construction';
   if (/(補助金|助成金|小規模|ものづくり|事業再構築)/.test(text)) return 'subsidy';
   if (/(士業|税理士|社労士|司法書士|紹介|連携|BNI|倫理)/i.test(text)) return 'referral';
-  return 'general';
+  if (/(一般|挨拶)/.test(text)) return 'general';
+  return '';
+}
+
+function toneFromText(value) {
+  const text = String(value || '');
+  if (!text) return '';
+  if (/やわらか|柔らか|カジュアル/.test(text)) return 'warm';
+  if (/短|簡潔/.test(text)) return 'short';
+  if (/紹介/.test(text)) return 'referral';
+  if (/丁寧/.test(text)) return 'polite';
+  return '';
+}
+
+function detectCategory(contact) {
+  if (contact.categoryOverride) return contact.categoryOverride;
+  return categoryFromText([contact.group, contact.memo, contact.metAt].join(' ')) || 'general';
+}
+
+function regenerateEmail(contact) {
+  const generated = buildEmail(contact);
+  contact.subject = generated.subject;
+  contact.body = generated.body;
 }
 
 function buildEmail(contact) {
   const category = detectCategory(contact);
+  const tone = contact.tone || 'polite';
   const name = contact.name || 'ご担当者';
   const prefix = contact.company ? `${contact.company} ${name}様` : `${name}様`;
   const subject = `【${OFFICE.name}】${prefix}、${CATEGORY_SUBJECTS[category]}の件でご挨拶`;
-  const body = [
+  const lines = [
     buildGreeting(contact),
     '',
-    '先日は名刺交換のお時間をいただき、ありがとうございました。',
+    buildOpening(tone),
     buildContextLine(contact),
     '',
-    buildServiceParagraph(category),
+    buildServiceParagraph(category, tone),
     '',
-    '必要になりましたら、情報整理だけでもお気軽にご相談ください。',
-    '突然のご連絡となり恐縮ですが、今後ともどうぞよろしくお願いいたします。',
+    buildClosing(tone),
     '',
     OFFICE.optOut,
     '',
@@ -192,9 +230,9 @@ function buildEmail(contact) {
     OFFICE.sender,
     OFFICE.contact,
     '------------------------------',
-  ].join('\n');
+  ];
 
-  return { subject, body };
+  return { subject, body: lines.filter((line) => line !== null).join('\n') };
 }
 
 function buildGreeting(contact) {
@@ -204,6 +242,12 @@ function buildGreeting(contact) {
   if (contact.title) parts.push(contact.title);
   parts.push(`${contact.name || 'ご担当者'}様`);
   return parts.join('\n');
+}
+
+function buildOpening(tone) {
+  if (tone === 'warm') return '先日はありがとうございました。お話しできてうれしかったです。';
+  if (tone === 'short') return '先日は名刺交換のお時間をいただき、ありがとうございました。';
+  return '先日は名刺交換のお時間をいただき、ありがとうございました。';
 }
 
 function buildContextLine(contact) {
@@ -222,7 +266,10 @@ function formatReferrer(referrer) {
   return `${name}様`;
 }
 
-function buildServiceParagraph(category) {
+function buildServiceParagraph(category, tone) {
+  if (tone === 'referral') {
+    return '許認可や補助金まわりでお困りの方がいらっしゃいましたら、連携先の一つとして思い出していただけますと幸いです。もちろん、ご本人様のご相談も歓迎です。';
+  }
   if (category === 'fuei') return '弊所では、飲食店営業許可、深夜酒類提供飲食店営業開始届、風俗営業許可など、店舗開業まわりの許認可手続きをサポートしています。';
   if (category === 'construction') return '弊所では、建設業許可、更新、決算変更届、各種変更届など、建設業者様の許認可手続きをサポートしています。';
   if (category === 'subsidy') return '弊所では、補助金申請や事業計画の整理、関連する許認可手続きの確認をサポートしています。';
@@ -230,12 +277,56 @@ function buildServiceParagraph(category) {
   return '弊所では、許認可手続きや補助金申請を中心に、事業者様の手続き面をサポートしています。';
 }
 
+function buildClosing(tone) {
+  if (tone === 'short') return '必要な際はお気軽にご連絡ください。今後ともよろしくお願いいたします。';
+  if (tone === 'warm') return '何かお力になれそうなことがあれば、気軽にお声がけください。今後ともよろしくお願いいたします。';
+  if (tone === 'referral') return 'まずはご挨拶までとなりますが、今後よい形で連携できましたら幸いです。どうぞよろしくお願いいたします。';
+  return '必要になりましたら、情報整理だけでもお気軽にご相談ください。\n突然のご連絡となり恐縮ですが、今後ともどうぞよろしくお願いいたします。';
+}
+
 function render() {
   ensureSelection();
+  renderMode();
+  renderWorkflow();
   renderSummary();
   renderList();
   renderEditor();
   saveState();
+}
+
+function renderMode() {
+  const hasContacts = state.contacts.length > 0;
+  els.startPanel.hidden = hasContacts;
+  els.workspace.hidden = !hasContacts;
+}
+
+function renderWorkflow() {
+  const selected = selectedContact();
+  const hasContacts = state.contacts.length > 0;
+  const canSend = selected && isValidEmail(selected.email) && !selected.blocked;
+  const hasDrafted = selected && selected.status === '下書き作成済み';
+
+  setStep(els.stepImport, hasContacts ? 'done' : 'active');
+  setStep(els.stepReview, hasContacts ? (hasDrafted ? 'done' : 'active') : '');
+  setStep(els.stepSend, hasDrafted ? 'active' : '');
+
+  if (!hasContacts) {
+    els.nextActionText.textContent = 'CSVを読み込むか、サンプルで試してください。';
+  } else if (!selected) {
+    els.nextActionText.textContent = '左の一覧から相手を選んでください。';
+  } else if (!isValidEmail(selected.email)) {
+    els.nextActionText.textContent = 'メールアドレスを確認してください。';
+  } else if (selected.blocked) {
+    els.nextActionText.textContent = '配信停止の相手です。送信対象から外れています。';
+  } else if (canSend) {
+    els.nextActionText.textContent = '文面を確認して、問題なければGmailで開いてください。';
+  }
+}
+
+function setStep(element, status) {
+  element.classList.remove('is-active', 'is-done');
+  if (status === 'active') element.classList.add('is-active');
+  if (status === 'done') element.classList.add('is-done');
 }
 
 function ensureSelection() {
@@ -255,10 +346,14 @@ function filteredContacts() {
 }
 
 function renderSummary() {
+  const pending = state.contacts.filter((contact) => !contact.status && !contact.blocked).length;
+  const drafted = state.contacts.filter((contact) => contact.status === '下書き作成済み').length;
+  const blocked = state.contacts.filter((contact) => contact.blocked || contact.status === '対象外').length;
   els.totalCount.textContent = String(state.contacts.length);
-  els.pendingCount.textContent = String(state.contacts.filter((contact) => !contact.status && !contact.blocked).length);
-  els.draftCount.textContent = String(state.contacts.filter((contact) => contact.status === '下書き作成済み').length);
-  els.blockedCount.textContent = String(state.contacts.filter((contact) => contact.blocked || contact.status === '対象外').length);
+  els.pendingCount.textContent = String(pending);
+  els.draftCount.textContent = String(drafted);
+  els.blockedCount.textContent = String(blocked);
+  els.contactCountLabel.textContent = `${filteredContacts().length}件`;
 }
 
 function renderList() {
@@ -268,19 +363,22 @@ function renderList() {
   if (contacts.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'contact-item';
-    empty.innerHTML = '<span class="contact-name">表示できる名刺がありません</span><span class="contact-company">CSVを読み込むか、検索条件を変えてください。</span>';
+    empty.innerHTML = '<span class="contact-name">該当する名刺がありません</span><span class="contact-company">検索や分類を変えてください。</span>';
     els.contactList.append(empty);
     return;
   }
 
   contacts.forEach((contact) => {
     const category = detectCategory(contact);
+    const invalid = !isValidEmail(contact.email);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = [
       'contact-item',
       contact.id === state.selectedId ? 'is-active' : '',
+      contact.status === '下書き作成済み' ? 'is-draft' : '',
       contact.blocked ? 'is-blocked' : '',
+      invalid ? 'is-invalid' : '',
     ].filter(Boolean).join(' ');
     button.innerHTML = `
       <span class="contact-topline">
@@ -289,10 +387,7 @@ function renderList() {
       </span>
       <span class="contact-company">${escapeHtml(contact.company || contact.email || '会社名なし')}</span>
       <span class="contact-note">${escapeHtml(contact.memo || contact.group || 'メモなし')}</span>
-      <span class="badge-row">
-        ${contact.status ? `<span class="badge status">${escapeHtml(contact.status)}</span>` : ''}
-        ${contact.blocked ? '<span class="badge blocked">配信停止</span>' : ''}
-      </span>
+      <span class="badge-row">${renderContactBadges(contact, invalid)}</span>
     `;
     button.addEventListener('click', () => {
       state.selectedId = contact.id;
@@ -302,11 +397,25 @@ function renderList() {
   });
 }
 
+function renderContactBadges(contact, invalid) {
+  const badges = [];
+  if (contact.status) badges.push(`<span class="badge ${statusClass(contact.status)}">${escapeHtml(contact.status)}</span>`);
+  if (!contact.status && !contact.blocked && !invalid) badges.push('<span class="badge status-pending">未処理</span>');
+  if (contact.blocked) badges.push('<span class="badge status-blocked">配信停止</span>');
+  if (invalid) badges.push('<span class="badge status-invalid">メール要確認</span>');
+  return badges.join('');
+}
+
+function statusClass(status) {
+  if (status === '下書き作成済み') return 'status-draft';
+  if (status === '送信済み') return 'status-sent';
+  if (status === '対象外') return 'status-blocked';
+  return 'status-pending';
+}
+
 function renderEditor() {
   const contact = selectedContact();
-  const hasSelection = Boolean(contact);
-  els.emptyState.hidden = hasSelection;
-  els.editorPanel.hidden = !hasSelection;
+  els.editorPanel.hidden = !contact;
   if (!contact) return;
 
   const category = detectCategory(contact);
@@ -314,23 +423,41 @@ function renderEditor() {
   els.selectedName.textContent = contact.name || '名前なし';
   els.selectedMeta.textContent = [contact.company, contact.email].filter(Boolean).join(' / ');
   els.excludeToggle.checked = contact.blocked;
+  els.emailInput.value = contact.email;
   els.metAtInput.value = contact.metAt;
   els.referrerInput.value = contact.referrer;
-  els.serviceInput.value = contact.serviceNeed;
+  els.serviceInput.value = contact.categoryOverride;
+  els.toneInput.value = contact.tone || 'polite';
   els.statusInput.value = contact.status;
   els.memoInput.value = contact.memo;
   els.subjectInput.value = contact.subject;
   els.bodyInput.value = contact.body;
+  els.gmailButton.disabled = !isValidEmail(contact.email) || contact.blocked;
+  renderRisks(contact);
+}
+
+function renderRisks(contact) {
+  const risks = [];
+  if (!isValidEmail(contact.email)) risks.push({ type: 'danger', text: 'メールアドレスを確認してください。' });
+  if (contact.blocked) risks.push({ type: 'danger', text: '配信停止の相手です。Gmailで開く操作は止めています。' });
+  if (contact.status === '下書き作成済み') risks.push({ type: 'info', text: 'この相手は作成済みです。再送前に内容を確認してください。' });
+  if (!contact.name) risks.push({ type: 'warn', text: '氏名が空欄です。宛名を確認してください。' });
+  if (risks.length === 0) risks.push({ type: 'info', text: `分類は「${CATEGORY_LABELS[detectCategory(contact)]}」、文体は「${TONE_LABELS[contact.tone || 'polite']}」です。` });
+
+  els.riskList.innerHTML = risks
+    .map((risk) => `<div class="risk-item ${risk.type}">${escapeHtml(risk.text)}</div>`)
+    .join('');
 }
 
 function selectedContact() {
   return state.contacts.find((contact) => contact.id === state.selectedId) || null;
 }
 
-function updateSelected(patch) {
+function updateSelected(patch, options = {}) {
   const contact = selectedContact();
   if (!contact) return;
   Object.assign(contact, patch);
+  if (options.regenerate) regenerateEmail(contact);
   render();
 }
 
@@ -343,6 +470,10 @@ function importCsv(text) {
 
   state.contacts = rowsToContacts(rows);
   state.selectedId = state.contacts[0] ? state.contacts[0].id : null;
+  state.search = '';
+  state.category = 'all';
+  els.searchInput.value = '';
+  els.categoryFilter.value = 'all';
   render();
   showToast(`${state.contacts.length}件を読み込みました。`);
 }
@@ -353,7 +484,7 @@ function exportCsv() {
     return;
   }
 
-  const headers = ['氏名', '会社名', '部署', '役職', 'メールアドレス', 'グループ', 'メモ', '出会った場所', '紹介者', '見込み業務', '送信ステータス', '配信停止', '件名', '本文'];
+  const headers = ['氏名', '会社名', '部署', '役職', 'メールアドレス', 'グループ', 'メモ', '出会った場所', '紹介者', '見込み業務', '文体', '送信ステータス', '配信停止', '件名', '本文'];
   const rows = state.contacts.map((contact) => [
     contact.name,
     contact.company,
@@ -364,7 +495,8 @@ function exportCsv() {
     contact.memo,
     contact.metAt,
     contact.referrer,
-    contact.serviceNeed,
+    CATEGORY_LABELS[detectCategory(contact)],
+    TONE_LABELS[contact.tone || 'polite'],
     contact.status,
     contact.blocked ? 'TRUE' : '',
     contact.subject,
@@ -378,7 +510,7 @@ function exportCsv() {
   anchor.download = `mybridge-mail-drafts-${new Date().toISOString().slice(0, 10)}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
-  showToast('CSVを書き出しました。');
+  showToast('編集結果をCSVで保存しました。');
 }
 
 function csvEscape(value) {
@@ -390,10 +522,15 @@ function csvEscape(value) {
 function openGmailCompose() {
   const contact = selectedContact();
   if (!contact) return;
-  if (!contact.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
+  if (!isValidEmail(contact.email)) {
     showToast('メールアドレスを確認してください。');
     return;
   }
+  if (contact.blocked) {
+    showToast('配信停止の相手です。');
+    return;
+  }
+
   contact.status = '下書き作成済み';
   const params = new URLSearchParams({
     view: 'cm',
@@ -409,7 +546,7 @@ function openGmailCompose() {
 async function copyEmail() {
   const contact = selectedContact();
   if (!contact) return;
-  const text = `件名: ${contact.subject}\n\n${contact.body}`;
+  const text = `To: ${contact.email}\n件名: ${contact.subject}\n\n${contact.body}`;
   try {
     await navigator.clipboard.writeText(text);
     showToast('文面をコピーしました。');
@@ -422,9 +559,7 @@ async function copyEmail() {
 function regenerateSelected() {
   const contact = selectedContact();
   if (!contact) return;
-  const generated = buildEmail(contact);
-  contact.subject = generated.subject;
-  contact.body = generated.body;
+  regenerateEmail(contact);
   render();
   showToast('文面を再生成しました。');
 }
@@ -466,6 +601,14 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
+function openFilePicker() {
+  els.csvFile.click();
+}
+
 els.csvFile.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -473,7 +616,10 @@ els.csvFile.addEventListener('change', async (event) => {
   event.target.value = '';
 });
 
+els.importButton.addEventListener('click', openFilePicker);
+els.heroImportButton.addEventListener('click', openFilePicker);
 els.loadSampleButton.addEventListener('click', () => importCsv(SAMPLE_CSV));
+els.heroSampleButton.addEventListener('click', () => importCsv(SAMPLE_CSV));
 els.exportButton.addEventListener('click', exportCsv);
 els.searchInput.addEventListener('input', (event) => {
   state.search = event.target.value;
@@ -484,9 +630,11 @@ els.categoryFilter.addEventListener('change', (event) => {
   render();
 });
 els.excludeToggle.addEventListener('change', (event) => updateSelected({ blocked: event.target.checked }));
+els.emailInput.addEventListener('input', (event) => updateSelected({ email: event.target.value }));
 els.metAtInput.addEventListener('input', (event) => updateSelected({ metAt: event.target.value }));
 els.referrerInput.addEventListener('input', (event) => updateSelected({ referrer: event.target.value }));
-els.serviceInput.addEventListener('change', (event) => updateSelected({ serviceNeed: event.target.value }));
+els.serviceInput.addEventListener('change', (event) => updateSelected({ categoryOverride: event.target.value }, { regenerate: true }));
+els.toneInput.addEventListener('change', (event) => updateSelected({ tone: event.target.value }, { regenerate: true }));
 els.statusInput.addEventListener('change', (event) => updateSelected({ status: event.target.value }));
 els.memoInput.addEventListener('input', (event) => updateSelected({ memo: event.target.value }));
 els.subjectInput.addEventListener('input', (event) => updateSelected({ subject: event.target.value }));
