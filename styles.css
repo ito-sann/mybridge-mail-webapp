@@ -273,6 +273,72 @@ h2 {
   color: var(--muted);
 }
 
+.csv-guide {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.start-guide {
+  grid-column: 1 / -1;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.start-guide h2 {
+  max-width: 760px;
+  font-size: 22px;
+}
+
+.workspace-guide {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+}
+
+.workspace-guide summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.guide-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guide-steps li {
+  min-height: 104px;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.guide-steps strong {
+  font-size: 15px;
+}
+
+.guide-steps span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.guide-steps.compact {
+  margin-top: 12px;
+}
+
+.guide-steps.compact li {
+  min-height: 82px;
+  padding: 12px;
+}
+
 .workspace {
   min-height: calc(100vh - 148px);
   display: grid;
@@ -658,6 +724,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .guide-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .left-pane {
     max-height: none;
   }
@@ -717,6 +787,18 @@ textarea {
 
   .start-copy h2 {
     font-size: 28px;
+  }
+
+  .start-guide {
+    padding: 14px;
+  }
+
+  .start-guide h2 {
+    font-size: 18px;
+  }
+
+  .guide-steps {
+    grid-template-columns: 1fr;
   }
 
   .workspace {
