@@ -1,22 +1,23 @@
 :root {
   color-scheme: light;
-  --bg: #f5f7f6;
-  --panel: #ffffff;
-  --panel-soft: #eef4f2;
-  --text: #1f2933;
-  --muted: #657282;
-  --line: #d9e1e6;
-  --blue: #2563eb;
-  --blue-dark: #1e40af;
-  --green: #047857;
-  --green-soft: #e8f6ef;
+  --bg: #EFE8DD;
+  --panel: #fffaf2;
+  --panel-strong: #ffffff;
+  --panel-soft: #f7efe4;
+  --text: #2b2926;
+  --muted: #746d63;
+  --line: #dccfbd;
+  --blue: #315f86;
+  --blue-dark: #234763;
+  --green: #28745c;
+  --green-soft: #e7f2eb;
   --red: #b42318;
   --red-soft: #fbebe9;
-  --amber: #a15c07;
-  --amber-soft: #fff3d6;
-  --teal: #0f766e;
-  --teal-soft: #e4f4f1;
-  --shadow: 0 16px 42px rgba(31, 41, 51, 0.08);
+  --amber: #99620d;
+  --amber-soft: #fff2d4;
+  --teal: #2f6f6b;
+  --teal-soft: #e3f1ef;
+  --shadow: 0 18px 44px rgba(68, 55, 39, 0.12);
 }
 
 * {
@@ -30,7 +31,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.72), rgba(239, 232, 221, 0.2) 280px),
+    var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
   letter-spacing: 0;
@@ -71,14 +74,14 @@ p {
 }
 
 .topbar {
-  min-height: 76px;
-  padding: 14px 22px;
+  min-height: 88px;
+  padding: 16px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 250, 242, 0.92);
   backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
@@ -86,7 +89,9 @@ p {
 }
 
 .brand-block {
-  min-width: 190px;
+  min-width: 260px;
+  display: grid;
+  gap: 3px;
 }
 
 .eyebrow {
@@ -98,13 +103,19 @@ p {
 }
 
 h1 {
-  font-size: 24px;
+  font-size: 25px;
   line-height: 1.08;
 }
 
 h2 {
   font-size: 21px;
   line-height: 1.35;
+}
+
+.brand-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .topbar-actions,
@@ -118,8 +129,8 @@ h2 {
 
 .primary-button,
 .secondary-button {
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   border-radius: 8px;
   border: 1px solid var(--line);
   font-weight: 800;
@@ -138,7 +149,7 @@ h2 {
 
 .secondary-button {
   color: var(--text);
-  background: var(--panel);
+  background: var(--panel-strong);
 }
 
 .secondary-button:hover {
@@ -146,15 +157,17 @@ h2 {
 }
 
 .app-main {
-  padding: 18px;
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 22px;
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .workflow-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
-  gap: 12px;
+  gap: 14px;
   align-items: stretch;
 }
 
@@ -166,31 +179,33 @@ h2 {
 .mail-composer {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: rgba(255, 250, 242, 0.94);
 }
 
 .stepper {
-  min-height: 72px;
-  padding: 12px;
+  min-height: 82px;
+  padding: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
+  box-shadow: var(--shadow);
 }
 
 .step {
-  min-height: 46px;
-  padding: 8px 10px;
+  min-height: 54px;
+  padding: 10px 12px;
   border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--muted);
   font-weight: 800;
+  background: rgba(247, 239, 228, 0.72);
 }
 
 .step.is-active {
   color: var(--blue-dark);
-  background: #eaf0ff;
+  background: #e7f0f7;
 }
 
 .step.is-done {
@@ -210,11 +225,12 @@ h2 {
 }
 
 .next-action {
-  min-height: 72px;
-  padding: 12px 14px;
+  min-height: 82px;
+  padding: 16px 18px;
   display: grid;
   align-content: center;
   gap: 4px;
+  box-shadow: var(--shadow);
 }
 
 .next-label {
@@ -229,18 +245,18 @@ h2 {
 }
 
 .start-panel {
-  min-height: calc(100vh - 148px);
-  padding: 36px;
+  min-height: calc(100vh - 172px);
+  padding: 34px;
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-  gap: 30px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 22px;
   align-items: center;
   box-shadow: var(--shadow);
 }
 
 .start-copy {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   max-width: 720px;
 }
 
@@ -249,17 +265,24 @@ h2 {
   line-height: 1.18;
 }
 
+.start-lead {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
 .start-steps {
   display: grid;
   gap: 12px;
 }
 
 .start-step {
-  min-height: 86px;
+  min-height: 96px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-soft);
+  background: var(--panel-strong);
   display: grid;
   align-content: center;
   gap: 6px;
@@ -276,14 +299,14 @@ h2 {
 .csv-guide {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: rgba(255, 250, 242, 0.94);
 }
 
 .start-guide {
   grid-column: 1 / -1;
-  padding: 18px;
+  padding: 20px;
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .start-guide h2 {
@@ -314,7 +337,7 @@ h2 {
   min-height: 104px;
   padding: 14px;
   border-radius: 8px;
-  background: var(--panel-soft);
+  background: var(--panel-strong);
   display: grid;
   align-content: start;
   gap: 6px;
@@ -344,7 +367,7 @@ h2 {
   grid-column: 1 / -1;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: rgba(255, 250, 242, 0.94);
 }
 
 .mapping-panel {
@@ -381,9 +404,26 @@ h2 {
 }
 
 .control-center {
-  padding: 12px;
+  padding: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 480px);
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  box-shadow: var(--shadow);
+}
+
+.control-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.control-copy p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.control-tools {
+  display: grid;
   gap: 12px;
 }
 
@@ -394,19 +434,19 @@ h2 {
 }
 
 .view-tab {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: var(--panel-soft);
+  background: var(--panel-strong);
   color: var(--muted);
   font-weight: 900;
 }
 
 .view-tab.is-active {
   color: var(--blue-dark);
-  background: #eaf0ff;
-  border-color: #b8c7ff;
+  background: #e7f0f7;
+  border-color: #9dbbd1;
 }
 
 .diagnostics-panel {
@@ -414,7 +454,7 @@ h2 {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .diagnostic-pill {
@@ -438,7 +478,7 @@ h2 {
 }
 
 .workspace {
-  min-height: calc(100vh - 148px);
+  min-height: calc(100vh - 172px);
   display: grid;
   grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
   gap: 18px;
@@ -446,10 +486,11 @@ h2 {
 
 .left-pane {
   min-height: 0;
-  padding: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: var(--shadow);
 }
 
 .pane-heading {
@@ -483,7 +524,7 @@ h2 {
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--panel-strong);
 }
 
 .search-box span {
@@ -535,7 +576,7 @@ textarea {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-soft);
+  background: var(--panel-strong);
 }
 
 .metric-label {
@@ -565,7 +606,7 @@ textarea {
   border: 1px solid var(--line);
   border-left: 5px solid transparent;
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--panel-strong);
   padding: 12px;
   text-align: left;
   display: grid;
@@ -653,12 +694,12 @@ textarea {
 
 .editor-panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .editor-header {
-  min-height: 116px;
-  padding: 18px;
+  min-height: 124px;
+  padding: 20px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -696,7 +737,7 @@ textarea {
 
 .risk-item {
   min-height: 40px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
   font-weight: 800;
@@ -723,7 +764,7 @@ textarea {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .settings-grid label,
@@ -744,13 +785,14 @@ textarea {
 .mail-composer {
   overflow: hidden;
   box-shadow: var(--shadow);
+  background: var(--panel-strong);
 }
 
 .mail-row {
   grid-template-columns: 82px minmax(0, 1fr);
   align-items: center;
-  min-height: 54px;
-  padding: 0 14px;
+  min-height: 58px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -767,7 +809,7 @@ textarea {
 }
 
 .mail-body {
-  padding: 14px;
+  padding: 16px;
 }
 
 #bodyInput {
@@ -781,19 +823,20 @@ textarea {
 .action-row {
   justify-content: flex-end;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .side-panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .panel-header {
-  min-height: 82px;
-  padding: 18px;
+  min-height: 96px;
+  padding: 20px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: rgba(255, 250, 242, 0.94);
   box-shadow: var(--shadow);
   display: flex;
   align-items: flex-start;
@@ -804,15 +847,15 @@ textarea {
 .target-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .target-summary div {
   min-height: 72px;
-  padding: 12px;
+  padding: 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: var(--panel-soft);
+  background: var(--panel-strong);
 }
 
 .target-summary span {
@@ -829,16 +872,16 @@ textarea {
 .table-list,
 .preview-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .table-row,
 .preview-card,
 .integration-card {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--panel-strong);
 }
 
 .table-row {
@@ -871,7 +914,7 @@ textarea {
   color: var(--text);
   background: var(--panel-soft);
   border-radius: 8px;
-  padding: 12px;
+  padding: 14px;
 }
 
 .integration-card h3 {
@@ -984,7 +1027,7 @@ textarea {
 
   .start-panel {
     min-height: auto;
-    padding: 20px;
+    padding: 18px;
   }
 
   .start-copy h2 {
@@ -1009,6 +1052,19 @@ textarea {
 
   .left-pane {
     padding: 12px;
+  }
+
+  .control-center {
+    padding: 12px;
+  }
+
+  .view-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .view-tab {
+    white-space: normal;
   }
 
   .settings-grid {

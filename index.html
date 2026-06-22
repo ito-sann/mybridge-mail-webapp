@@ -14,6 +14,7 @@
         <div class="brand-block">
           <p class="eyebrow">myBridge CSV</p>
           <h1>名刺メール作成</h1>
+          <p class="brand-subtitle">名刺データから、確認しながら営業メールを整える作業台</p>
         </div>
         <div class="topbar-actions">
           <button id="importButton" class="secondary-button" type="button">CSVを読み込む</button>
@@ -48,6 +49,7 @@
           <div class="start-copy">
             <p class="category-pill">CSVからメール作成</p>
             <h2>名刺データを読み込んで、相手ごとの挨拶メールを作れます。</h2>
+            <p class="start-lead">CSVを入れるだけで、見込み業務の分類、メール文面、重複チェック、送信対象の確認まで同じ画面で進められます。</p>
             <div class="start-actions">
               <button id="heroImportButton" class="primary-button" type="button">myBridge CSVを読み込む</button>
               <button id="heroSampleButton" class="secondary-button" type="button">サンプルで試す</button>
@@ -118,14 +120,21 @@
           </section>
 
           <section class="control-center" aria-label="操作パネル">
-            <div class="view-tabs" role="tablist">
-              <button class="view-tab is-active" type="button" data-view="editor">メール編集</button>
-              <button class="view-tab" type="button" data-view="targets">送信対象</button>
-              <button class="view-tab" type="button" data-view="preview">全員プレビュー</button>
-              <button class="view-tab" type="button" data-view="templates">テンプレ</button>
-              <button class="view-tab" type="button" data-view="settings">事務所設定</button>
+            <div class="control-copy">
+              <p class="eyebrow">Workspace</p>
+              <h2>作業メニュー</h2>
+              <p>まずはメール編集で1件ずつ確認し、送信対象と全員プレビューで全体を見直します。</p>
             </div>
-            <div id="diagnosticsPanel" class="diagnostics-panel"></div>
+            <div class="control-tools">
+              <div class="view-tabs" role="tablist">
+                <button class="view-tab is-active" type="button" data-view="editor">メール編集</button>
+                <button class="view-tab" type="button" data-view="targets">送信対象</button>
+                <button class="view-tab" type="button" data-view="preview">全員プレビュー</button>
+                <button class="view-tab" type="button" data-view="templates">テンプレ</button>
+                <button class="view-tab" type="button" data-view="settings">事務所設定</button>
+              </div>
+              <div id="diagnosticsPanel" class="diagnostics-panel"></div>
+            </div>
           </section>
 
           <aside class="left-pane" aria-label="名刺一覧">
@@ -133,6 +142,7 @@
               <div>
                 <p class="eyebrow">Contacts</p>
                 <h2>名刺一覧</h2>
+                <p class="panel-note">左で相手を選ぶと、右側の文面が切り替わります。</p>
               </div>
               <span id="contactCountLabel" class="count-label">0件</span>
             </div>
