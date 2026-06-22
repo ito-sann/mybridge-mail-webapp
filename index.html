@@ -103,6 +103,31 @@
               <li><strong>CSVを読み込む</strong><span>この画面上部の「CSVを読み込む」からファイルを選びます。</span></li>
             </ol>
           </details>
+
+          <section id="mappingPanel" class="mapping-panel" hidden>
+            <div>
+              <p class="eyebrow">CSVチェック</p>
+              <h2>列の対応を確認してください</h2>
+              <p id="mappingMessage" class="panel-note">氏名とメールアドレスの列が分かれば読み込めます。</p>
+            </div>
+            <div id="mappingFields" class="mapping-grid"></div>
+            <div class="action-row">
+              <button id="cancelMappingButton" class="secondary-button" type="button">キャンセル</button>
+              <button id="applyMappingButton" class="primary-button" type="button">この対応で読み込む</button>
+            </div>
+          </section>
+
+          <section class="control-center" aria-label="操作パネル">
+            <div class="view-tabs" role="tablist">
+              <button class="view-tab is-active" type="button" data-view="editor">メール編集</button>
+              <button class="view-tab" type="button" data-view="targets">送信対象</button>
+              <button class="view-tab" type="button" data-view="preview">全員プレビュー</button>
+              <button class="view-tab" type="button" data-view="templates">テンプレ</button>
+              <button class="view-tab" type="button" data-view="settings">事務所設定</button>
+            </div>
+            <div id="diagnosticsPanel" class="diagnostics-panel"></div>
+          </section>
+
           <aside class="left-pane" aria-label="名刺一覧">
             <div class="pane-heading">
               <div>
@@ -227,9 +252,83 @@
 
               <div class="action-row">
                 <button id="regenerateButton" class="secondary-button" type="button">文面を再生成</button>
+                <button id="saveTemplateButton" class="secondary-button" type="button">テンプレ保存</button>
+                <button id="aiPromptButton" class="secondary-button" type="button">AI用プロンプト</button>
                 <button id="copyButton" class="secondary-button" type="button">文面をコピー</button>
                 <button id="gmailButton" class="primary-button" type="button">Gmailで開く</button>
               </div>
+            </article>
+
+            <article id="targetsPanel" class="side-panel" hidden>
+              <header class="panel-header">
+                <div>
+                  <p class="eyebrow">Send candidates</p>
+                  <h2>送信対象リスト</h2>
+                </div>
+                <button id="copyTargetsButton" class="secondary-button" type="button">対象者CSVをコピー</button>
+              </header>
+              <div class="target-summary">
+                <div><span>送信OK</span><strong id="eligibleCount">0</strong></div>
+                <div><span>除外</span><strong id="excludedCount">0</strong></div>
+                <div><span>重複</span><strong id="duplicateCount">0</strong></div>
+              </div>
+              <div id="targetList" class="table-list"></div>
+            </article>
+
+            <article id="previewPanel" class="side-panel" hidden>
+              <header class="panel-header">
+                <div>
+                  <p class="eyebrow">Preview</p>
+                  <h2>全員分の文面確認</h2>
+                </div>
+                <button id="copyAllPreviewButton" class="secondary-button" type="button">全プレビューをコピー</button>
+              </header>
+              <div id="previewList" class="preview-list"></div>
+            </article>
+
+            <article id="templatesPanel" class="side-panel" hidden>
+              <header class="panel-header">
+                <div>
+                  <p class="eyebrow">Templates</p>
+                  <h2>テンプレート</h2>
+                </div>
+                <button id="deleteTemplateButton" class="secondary-button" type="button">選択テンプレを削除</button>
+              </header>
+              <div class="settings-grid">
+                <label>
+                  <span>テンプレート</span>
+                  <select id="templateSelect"></select>
+                </label>
+                <label>
+                  <span>保存名</span>
+                  <input id="templateNameInput" type="text" placeholder="例: 風営法 初回挨拶">
+                </label>
+              </div>
+              <div class="action-row">
+                <button id="applyTemplateButton" class="primary-button" type="button">選択中の相手に適用</button>
+                <button id="saveNamedTemplateButton" class="secondary-button" type="button">現在の文面を保存</button>
+              </div>
+              <div id="templatePreview" class="preview-list"></div>
+            </article>
+
+            <article id="settingsPanel" class="side-panel" hidden>
+              <header class="panel-header">
+                <div>
+                  <p class="eyebrow">Office settings</p>
+                  <h2>事務所情報</h2>
+                </div>
+                <button id="resetSettingsButton" class="secondary-button" type="button">初期値に戻す</button>
+              </header>
+              <div class="settings-grid">
+                <label><span>事務所名</span><input id="officeNameInput" type="text"></label>
+                <label><span>差出人名</span><input id="senderNameInput" type="text"></label>
+                <label><span>電話・住所・URL</span><input id="senderContactInput" type="text"></label>
+                <label><span>配信停止文</span><input id="optOutInput" type="text"></label>
+              </div>
+              <section class="integration-card">
+                <h3>今後の連携</h3>
+                <p>Googleログインを追加すると、Gmail下書きの一括作成やGoogleスプレッドシート同期まで拡張できます。今は個人情報を外部サーバーへ送らない、ブラウザ内完結の安全版です。</p>
+              </section>
             </article>
           </section>
         </section>
