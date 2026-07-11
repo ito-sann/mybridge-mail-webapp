@@ -921,6 +921,81 @@ textarea {
   margin: 0 0 6px;
 }
 
+.gmail-bulk-bar {
+  padding: 16px;
+  border: 1px solid #9dbbd1;
+  border-radius: 8px;
+  background: #e7f0f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.gmail-bulk-info {
+  min-width: 240px;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.gmail-bulk-info strong {
+  color: var(--blue-dark);
+}
+
+.gmail-bulk-info .panel-note {
+  margin-top: 0;
+}
+
+.google-connect-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.google-connect-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.google-guide {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.google-guide summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.google-guide .guide-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1040px) {
+  .google-guide .guide-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .gmail-bulk-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .google-guide .guide-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
 .toast {
   position: fixed;
   left: 50%;

@@ -67,6 +67,9 @@ const DEFAULT_TEMPLATES = [
   },
 ];
 
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/userinfo.email';
+const MAX_DRAFTS_PER_RUN = 50;
+
 const state = {
   contacts: [],
   selectedId: null,
@@ -78,7 +81,11 @@ const state = {
   columnMap: {},
   office: { ...DEFAULT_OFFICE },
   templates: [...DEFAULT_TEMPLATES],
+  googleClientId: '',
+  googleEmail: '',
 };
+
+const googleToken = { value: '', expiresAt: 0 };
 
 const els = {
   csvFile: document.getElementById('csvFile'),
@@ -149,6 +156,13 @@ const els = {
   senderContactInput: document.getElementById('senderContactInput'),
   optOutInput: document.getElementById('optOutInput'),
   resetSettingsButton: document.getElementById('resetSettingsButton'),
+  googleClientIdInput: document.getElementById('googleClientIdInput'),
+  googleConnectButton: document.getElementById('googleConnectButton'),
+  googleDisconnectButton: document.getElementById('googleDisconnectButton'),
+  googleSettingsStatus: document.getElementById('googleSettingsStatus'),
+  googleTargetsStatus: document.getElementById('googleTargetsStatus'),
+  bulkDraftButton: document.getElementById('bulkDraftButton'),
+  bulkResult: document.getElementById('bulkResult'),
   toast: document.getElementById('toast'),
 };
 
@@ -621,6 +635,7 @@ function renderTargets() {
   els.eligibleCount.textContent = String(candidates.length);
   els.excludedCount.textContent = String(excluded);
   els.duplicateCount.textContent = String(duplicateInfo.extras.size);
+  renderGoogleTargetsStatus(candidates);
   els.targetList.innerHTML = state.contacts.map((contact) => {
     const reason = exclusionReason(contact, duplicateInfo);
     return `<div class="table-row">
@@ -629,6 +644,17 @@ function renderTargets() {
       <div>${reason ? `<span class="badge status-invalid">${escapeHtml(reason)}</span>` : '<span class="badge status-draft">送信OK</span>'}</div>
     </div>`;
   }).join('');
+}
+
+function renderGoogleTargetsStatus(candidates) {
+  const pending = candidates.filter((contact) => contact.status !== '下書き作成済み' && contact.status !== '送信済み').length;
+  if (!state.googleClientId.trim()) {
+    els.googleTargetsStatus.textContent = '未連携です。事務所設定タブでGoogle連携を設定すると使えます。';
+  } else if (state.googleEmail) {
+    els.googleTargetsStatus.textContent = `連携中: ${state.googleEmail}。送信OKのうち未作成の${pending}件をGmailの下書きにまとめて入れます。`;
+  } else {
+    els.googleTargetsStatus.textContent = `設定済み。ボタンを押すとGoogleのログイン画面が開き、未作成の${pending}件の下書きを作成します。`;
+  }
 }
 
 function renderPreviewList() {
@@ -650,6 +676,15 @@ function renderSettings() {
   els.senderNameInput.value = state.office.sender;
   els.senderContactInput.value = state.office.contact;
   els.optOutInput.value = state.office.optOut;
+  els.googleClientIdInput.value = state.googleClientId;
+  els.googleDisconnectButton.hidden = !state.googleEmail;
+  if (state.googleEmail) {
+    els.googleSettingsStatus.textContent = `連携中: ${state.googleEmail}。送信対象タブの「Gmailに下書きを一括作成」が使えます。`;
+  } else if (state.googleClientId.trim()) {
+    els.googleSettingsStatus.textContent = 'クライアントID設定済み。「Googleと連携する」を押してGoogleにログインしてください。';
+  } else {
+    els.googleSettingsStatus.textContent = '未連携です。クライアントIDを設定して「Googleと連携する」を押すと、送信対象タブから全員分のGmail下書きを一括作成できます。名刺データは自分のGmailにしか送られません。';
+  }
 }
 
 function selectedTemplate() {
@@ -794,6 +829,196 @@ function openGmailCompose() {
   render();
 }
 
+function googleReady() {
+  return Boolean(window.google && window.google.accounts && window.google.accounts.oauth2);
+}
+
+function requestGoogleToken(promptMode) {
+  return new Promise((resolve, reject) => {
+    const clientId = state.googleClientId.trim();
+    if (!clientId) {
+      reject(new Error('GoogleクライアントIDが未設定です。事務所設定タブで入力してください。'));
+      return;
+    }
+    if (!googleReady()) {
+      reject(new Error('Googleの読み込みが終わっていません。数秒待ってからもう一度お試しください。'));
+      return;
+    }
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: GOOGLE_SCOPES,
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error === 'access_denied' ? 'Googleへのアクセス許可がキャンセルされました。' : `Googleログインに失敗しました（${response.error}）。`));
+          return;
+        }
+        googleToken.value = response.access_token;
+        googleToken.expiresAt = Date.now() + (Number(response.expires_in || 3600) - 60) * 1000;
+        resolve(googleToken.value);
+      },
+      error_callback: (error) => {
+        reject(new Error(error && error.type === 'popup_closed' ? 'Googleのログイン画面が閉じられました。' : 'Googleログインを開けませんでした。クライアントIDとURLの設定を確認してください。'));
+      },
+    });
+    client.requestAccessToken({ prompt: promptMode });
+  });
+}
+
+async function ensureGoogleToken() {
+  if (googleToken.value && Date.now() < googleToken.expiresAt) return googleToken.value;
+  return requestGoogleToken(state.googleEmail ? '' : 'consent');
+}
+
+async function loadGoogleAccountEmail(token) {
+  try {
+    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return;
+    const info = await response.json();
+    if (info.email) state.googleEmail = info.email;
+  } catch (error) {
+    // アカウント表示用の情報なので、取れなくても処理は続ける
+  }
+}
+
+async function connectGoogle() {
+  state.googleClientId = els.googleClientIdInput.value.trim();
+  if (!state.googleClientId) {
+    showToast('先にGoogleクライアントIDを入力してください。');
+    return;
+  }
+  try {
+    const token = await requestGoogleToken('consent');
+    await loadGoogleAccountEmail(token);
+    render();
+    showToast(state.googleEmail ? `Googleと連携しました（${state.googleEmail}）。` : 'Googleと連携しました。');
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function disconnectGoogle() {
+  if (googleToken.value && googleReady() && window.google.accounts.oauth2.revoke) {
+    window.google.accounts.oauth2.revoke(googleToken.value, () => {});
+  }
+  googleToken.value = '';
+  googleToken.expiresAt = 0;
+  state.googleEmail = '';
+  render();
+  showToast('Google連携を解除しました。');
+}
+
+function base64FromUtf8(text) {
+  const bytes = new TextEncoder().encode(String(text || ''));
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function buildDraftRaw(contact) {
+  const headers = [
+    `To: ${contact.email}`,
+    `Subject: =?UTF-8?B?${base64FromUtf8(contact.subject)}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+  ];
+  const body = base64FromUtf8(contact.body).replace(/(.{76})/g, '$1\r\n');
+  const message = `${headers.join('\r\n')}\r\n\r\n${body}`;
+  return base64FromUtf8(message).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function createGmailDraft(contact, token) {
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: { raw: buildDraftRaw(contact) } }),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    const error = new Error(detail.error && detail.error.message ? detail.error.message : `エラー（HTTP ${response.status}）`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function bulkCreateDrafts() {
+  if (bulkCreateDrafts.running) return;
+  if (!state.googleClientId.trim()) {
+    state.activeView = 'settings';
+    render();
+    showToast('先に事務所設定タブでGoogle連携を設定してください。');
+    return;
+  }
+  const candidates = sendCandidates().filter((contact) => contact.status !== '下書き作成済み' && contact.status !== '送信済み');
+  if (candidates.length === 0) {
+    showToast('下書きを作成できる相手がいません（作成済み・送信済みは除きます）。');
+    return;
+  }
+  const targets = candidates.slice(0, MAX_DRAFTS_PER_RUN);
+  if (!window.confirm(`Gmailに${targets.length}件の下書きを作成します。よろしいですか？\n（送信はされません。Gmailで確認してから送れます）`)) return;
+
+  bulkCreateDrafts.running = true;
+  els.bulkDraftButton.disabled = true;
+  els.bulkResult.hidden = true;
+  const errors = [];
+  let created = 0;
+  try {
+    let token = await ensureGoogleToken();
+    if (!state.googleEmail) await loadGoogleAccountEmail(token);
+    for (let index = 0; index < targets.length; index += 1) {
+      const contact = targets[index];
+      els.bulkDraftButton.textContent = `作成中 ${index + 1}/${targets.length}…`;
+      try {
+        await createGmailDraft(contact, token);
+        contact.status = '下書き作成済み';
+        created += 1;
+      } catch (error) {
+        if (error.status === 401) {
+          googleToken.value = '';
+          try {
+            token = await ensureGoogleToken();
+            await createGmailDraft(contact, token);
+            contact.status = '下書き作成済み';
+            created += 1;
+          } catch (retryError) {
+            errors.push({ contact, message: retryError.message });
+          }
+        } else {
+          errors.push({ contact, message: error.message });
+        }
+      }
+      await sleep(150);
+    }
+  } catch (error) {
+    showToast(error.message || 'Google連携でエラーが発生しました。');
+  } finally {
+    bulkCreateDrafts.running = false;
+    els.bulkDraftButton.disabled = false;
+    els.bulkDraftButton.textContent = 'Gmailに下書きを一括作成';
+    renderBulkResult(created, errors, candidates.length - targets.length);
+    render();
+    if (created > 0) showToast(`${created}件の下書きをGmailに作成しました。`);
+  }
+}
+
+function renderBulkResult(created, errors, remaining) {
+  const items = [];
+  if (created > 0) items.push(`<div class="risk-item info">${created}件の下書きをGmailに作成しました。Gmailの「下書き」から中身を確認して送信してください。</div>`);
+  errors.forEach(({ contact, message }) => {
+    items.push(`<div class="risk-item danger">${escapeHtml(contact.name || contact.email)}: ${escapeHtml(message)}</div>`);
+  });
+  if (remaining > 0) items.push(`<div class="risk-item warn">安全のため1回の実行は${MAX_DRAFTS_PER_RUN}件までです。残り${remaining}件は、もう一度ボタンを押してください。</div>`);
+  els.bulkResult.innerHTML = items.join('');
+  els.bulkResult.hidden = items.length === 0;
+}
+
 async function copyEmail() {
   const contact = selectedContact();
   if (!contact) return;
@@ -852,6 +1077,8 @@ function saveState() {
     selectedId: state.selectedId,
     office: state.office,
     templates: state.templates,
+    googleClientId: state.googleClientId,
+    googleEmail: state.googleEmail,
   }));
 }
 
@@ -864,6 +1091,8 @@ function restoreState() {
     }
     if (saved.office) state.office = { ...DEFAULT_OFFICE, ...saved.office };
     if (Array.isArray(saved.templates) && saved.templates.length > 0) state.templates = saved.templates;
+    if (typeof saved.googleClientId === 'string') state.googleClientId = saved.googleClientId;
+    if (typeof saved.googleEmail === 'string') state.googleEmail = saved.googleEmail;
   } catch (error) {
     localStorage.removeItem('mybridge-mail-webapp');
   }
@@ -946,6 +1175,14 @@ els.senderNameInput.addEventListener('input', (event) => updateOffice({ sender: 
 els.senderContactInput.addEventListener('input', (event) => updateOffice({ contact: event.target.value }));
 els.optOutInput.addEventListener('input', (event) => updateOffice({ optOut: event.target.value }));
 els.resetSettingsButton.addEventListener('click', resetOfficeSettings);
+els.googleClientIdInput.addEventListener('input', (event) => {
+  state.googleClientId = event.target.value;
+  saveState();
+});
+els.googleClientIdInput.addEventListener('change', () => render());
+els.googleConnectButton.addEventListener('click', connectGoogle);
+els.googleDisconnectButton.addEventListener('click', disconnectGoogle);
+els.bulkDraftButton.addEventListener('click', bulkCreateDrafts);
 
 restoreState();
 render();

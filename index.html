@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>名刺メール作成</title>
     <link rel="stylesheet" href="./styles.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <input id="csvFile" class="visually-hidden" type="file" accept=".csv,text/csv">
@@ -282,6 +283,14 @@
                 <div><span>除外</span><strong id="excludedCount">0</strong></div>
                 <div><span>重複</span><strong id="duplicateCount">0</strong></div>
               </div>
+              <div class="gmail-bulk-bar">
+                <div class="gmail-bulk-info">
+                  <strong>Gmail下書きの一括作成</strong>
+                  <span id="googleTargetsStatus" class="panel-note">未連携です。事務所設定タブでGoogle連携を設定すると使えます。</span>
+                </div>
+                <button id="bulkDraftButton" class="primary-button" type="button">Gmailに下書きを一括作成</button>
+              </div>
+              <div id="bulkResult" class="risk-list" hidden></div>
               <div id="targetList" class="table-list"></div>
             </article>
 
@@ -336,8 +345,26 @@
                 <label><span>配信停止文</span><input id="optOutInput" type="text"></label>
               </div>
               <section class="integration-card">
-                <h3>今後の連携</h3>
-                <p>Googleログインを追加すると、Gmail下書きの一括作成やGoogleスプレッドシート同期まで拡張できます。今は個人情報を外部サーバーへ送らない、ブラウザ内完結の安全版です。</p>
+                <h3>Google連携（Gmail下書きの一括作成）</h3>
+                <p id="googleSettingsStatus">未連携です。クライアントIDを設定して「Googleと連携する」を押すと、送信対象タブから全員分のGmail下書きを一括作成できます。名刺データは自分のGmailにしか送られません。</p>
+                <div class="google-connect-grid">
+                  <label><span>GoogleクライアントID</span><input id="googleClientIdInput" type="text" placeholder="例: 123456789-xxxx.apps.googleusercontent.com" autocomplete="off"></label>
+                  <div class="action-row">
+                    <button id="googleDisconnectButton" class="secondary-button" type="button" hidden>連携を解除</button>
+                    <button id="googleConnectButton" class="primary-button" type="button">Googleと連携する</button>
+                  </div>
+                </div>
+                <details class="google-guide">
+                  <summary>クライアントIDの取り方（初回のみ・10分ほど）</summary>
+                  <ol class="guide-steps compact">
+                    <li><strong>1. Google Cloudを開く</strong><span>console.cloud.google.com にGmailと同じGoogleアカウントでログインし、新しいプロジェクトを作ります（名前は「mybridge-mail」など自由）。</span></li>
+                    <li><strong>2. Gmail APIを有効にする</strong><span>「APIとサービス」→「ライブラリ」で Gmail API を検索し、「有効にする」を押します。</span></li>
+                    <li><strong>3. 同意画面を作る</strong><span>「APIとサービス」→「OAuth同意画面」で外部を選び、アプリ名と自分のメールを入力。「テストユーザー」に自分のGmailアドレスを追加します。</span></li>
+                    <li><strong>4. クライアントIDを作る</strong><span>「認証情報」→「認証情報を作成」→「OAuthクライアントID」。種類は「ウェブアプリケーション」、「承認済みのJavaScript生成元」にこのアプリのURL（例: https://ito-sann.github.io）を追加します。</span></li>
+                    <li><strong>5. 貼り付ける</strong><span>作成後に表示される「xxxx.apps.googleusercontent.com」で終わるIDをコピーし、上の欄に貼り付けて「Googleと連携する」を押します。</span></li>
+                    <li><strong>6. 警告が出たら</strong><span>初回ログイン時に「このアプリはGoogleで確認されていません」と出たら、「詳細」→「（安全でないページに）移動」で進めます。自分で作ったアプリなので問題ありません。</span></li>
+                  </ol>
+                </details>
               </section>
             </article>
           </section>
