@@ -291,6 +291,16 @@
                 <button id="bulkDraftButton" class="primary-button" type="button">Gmailに下書きを一括作成</button>
               </div>
               <div id="bulkResult" class="risk-list" hidden></div>
+              <div class="target-toolbar">
+                <button id="selectAllButton" class="secondary-button" type="button">全員選ぶ</button>
+                <button id="clearAllButton" class="secondary-button" type="button">全員はずす</button>
+                <div class="recent-filter">
+                  <span>追加日が</span>
+                  <input id="recentDaysInput" type="number" min="1" max="365" value="7" aria-label="日数">
+                  <span>日以内の人だけ選ぶ</span>
+                  <button id="selectRecentButton" class="secondary-button" type="button">適用</button>
+                </div>
+              </div>
               <div id="targetList" class="table-list"></div>
             </article>
 

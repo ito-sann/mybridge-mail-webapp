@@ -1,8 +1,10 @@
-const SAMPLE_CSV = `氏名,会社名,部署,役職,メールアドレス,グループ,メモ,出会った場所,紹介者,見込み業務
-山田太郎,株式会社サンプル,開発部,代表取締役,taro.yamada@example.com,交流会,バー開業予定。深夜酒類の相談可能性あり,BNI,佐藤さん,風営法
-鈴木花子,鈴木建設株式会社,総務部,部長,hanako.suzuki@example.com,建設業,建設業許可の更新時期が近い,倫理法人会,,建設業許可
-田中一郎,田中税理士事務所,,税理士,ichiro.tanaka@example.com,士業,許認可案件が出たら紹介したいとのこと,交流会,,士業連携
-山田太郎,株式会社サンプル,開発部,代表取締役,taro.yamada@example.com,交流会,重複チェック用の同一メール,BNI,佐藤さん,風営法`;
+function buildSampleCsv() {
+  return `氏名,会社名,部署,役職,メールアドレス,グループ,メモ,出会った場所,紹介者,追加日,見込み業務
+山田太郎,株式会社サンプル,開発部,代表取締役,taro.yamada@example.com,交流会,バー開業予定。深夜酒類の相談可能性あり,BNI,佐藤さん,${isoDaysAgo(2)},風営法
+鈴木花子,鈴木建設株式会社,総務部,部長,hanako.suzuki@example.com,建設業,建設業許可の更新時期が近い,倫理法人会,,${isoDaysAgo(5)},建設業許可
+田中一郎,田中税理士事務所,,税理士,ichiro.tanaka@example.com,士業,許認可案件が出たら紹介したいとのこと,交流会,,${isoDaysAgo(40)},士業連携
+山田太郎,株式会社サンプル,開発部,代表取締役,taro.yamada@example.com,交流会,重複チェック用の同一メール,BNI,佐藤さん,${isoDaysAgo(2)},風営法`;
+}
 
 const DEFAULT_OFFICE = {
   name: 'アストラ行政書士事務所',
@@ -44,6 +46,7 @@ const FIELD_DEFS = [
   { key: 'memo', label: 'メモ', aliases: ['メモ', 'Memo', 'memo', '備考'] },
   { key: 'metAt', label: '出会った場所', aliases: ['出会った場所', '会った場所', '交流会'] },
   { key: 'referrer', label: '紹介者', aliases: ['紹介者'] },
+  { key: 'addedAt', label: '追加日', aliases: ['追加日', '登録日', '交換日', '名刺交換日', '作成日', '取り込み日', 'Date', 'date', 'Created', 'created_at'] },
   { key: 'category', label: '見込み業務', aliases: ['見込み業務', '業務', '分類'] },
   { key: 'tone', label: '文体', aliases: ['文体', 'トーン'] },
   { key: 'status', label: 'ステータス', aliases: ['送信ステータス', 'ステータス'] },
@@ -163,6 +166,10 @@ const els = {
   googleTargetsStatus: document.getElementById('googleTargetsStatus'),
   bulkDraftButton: document.getElementById('bulkDraftButton'),
   bulkResult: document.getElementById('bulkResult'),
+  selectAllButton: document.getElementById('selectAllButton'),
+  clearAllButton: document.getElementById('clearAllButton'),
+  recentDaysInput: document.getElementById('recentDaysInput'),
+  selectRecentButton: document.getElementById('selectRecentButton'),
   toast: document.getElementById('toast'),
 };
 
@@ -320,6 +327,8 @@ function rowsToContacts(rows, map) {
       blocked: parseBoolean(valueFromMap(record, map.blocked)),
       subject: valueFromMap(record, map.subject),
       body: valueFromMap(record, map.body),
+      addedAt: parseDateLoose(valueFromMap(record, map.addedAt)) || toIsoDate(new Date()),
+      checked: true,
     };
     if (!contact.subject || !contact.body) regenerateEmail(contact);
     return contact;
@@ -635,26 +644,38 @@ function renderTargets() {
   els.eligibleCount.textContent = String(candidates.length);
   els.excludedCount.textContent = String(excluded);
   els.duplicateCount.textContent = String(duplicateInfo.extras.size);
-  renderGoogleTargetsStatus(candidates);
+  renderGoogleTargetsStatus();
   els.targetList.innerHTML = state.contacts.map((contact) => {
     const reason = exclusionReason(contact, duplicateInfo);
-    return `<div class="table-row">
+    const checked = isContactChecked(contact);
+    const checkboxCell = reason
+      ? '<span class="row-check" aria-hidden="true"></span>'
+      : `<label class="row-check"><input type="checkbox" data-contact-id="${escapeHtml(contact.id)}"${checked ? ' checked' : ''}><span class="visually-hidden">送る相手に含める</span></label>`;
+    return `<div class="table-row with-check${reason ? ' is-excluded' : ''}">
+      ${checkboxCell}
       <div><strong>${escapeHtml(contact.name || '名前なし')}</strong><span>${escapeHtml(contact.company || '')}</span></div>
-      <div><span>${escapeHtml(contact.email || 'メールなし')}</span></div>
-      <div>${reason ? `<span class="badge status-invalid">${escapeHtml(reason)}</span>` : '<span class="badge status-draft">送信OK</span>'}</div>
+      <div><span>${escapeHtml(contact.email || 'メールなし')}</span><span>追加日: ${escapeHtml(formatDateLabel(contact.addedAt))}</span></div>
+      <div>${targetRowBadge(contact, reason, checked)}</div>
     </div>`;
   }).join('');
 }
 
-function renderGoogleTargetsStatus(candidates) {
-  const pending = candidates.filter((contact) => contact.status !== '下書き作成済み' && contact.status !== '送信済み').length;
+function renderGoogleTargetsStatus() {
+  const pending = draftTargets().length;
   if (!state.googleClientId.trim()) {
     els.googleTargetsStatus.textContent = '未連携です。事務所設定タブでGoogle連携を設定すると使えます。';
   } else if (state.googleEmail) {
-    els.googleTargetsStatus.textContent = `連携中: ${state.googleEmail}。送信OKのうち未作成の${pending}件をGmailの下書きにまとめて入れます。`;
+    els.googleTargetsStatus.textContent = `連携中: ${state.googleEmail}。チェックを付けた未作成の${pending}件をGmailの下書きにまとめて入れます。`;
   } else {
-    els.googleTargetsStatus.textContent = `設定済み。ボタンを押すとGoogleのログイン画面が開き、未作成の${pending}件の下書きを作成します。`;
+    els.googleTargetsStatus.textContent = `設定済み。ボタンを押すとGoogleのログイン画面が開き、チェックを付けた未作成の${pending}件の下書きを作成します。`;
   }
+}
+
+function targetRowBadge(contact, reason, checked) {
+  if (reason) return `<span class="badge status-invalid">${escapeHtml(reason)}</span>`;
+  if (contact.status === '下書き作成済み' || contact.status === '送信済み') return `<span class="badge ${statusClass(contact.status)}">${escapeHtml(contact.status)}</span>`;
+  if (checked) return '<span class="badge status-draft">送る</span>';
+  return '<span class="badge status-pending">送らない</span>';
 }
 
 function renderPreviewList() {
@@ -777,6 +798,35 @@ function selectedContact() {
   return state.contacts.find((contact) => contact.id === state.selectedId) || null;
 }
 
+function isContactChecked(contact) {
+  return contact.checked !== false;
+}
+
+function draftTargets() {
+  return sendCandidates().filter((contact) => isContactChecked(contact) && contact.status !== '下書き作成済み' && contact.status !== '送信済み');
+}
+
+function setAllChecked(value) {
+  state.contacts.forEach((contact) => {
+    contact.checked = value;
+  });
+  render();
+  showToast(value ? '全員を選びました。' : '選択を全てはずしました。');
+}
+
+function selectRecentContacts() {
+  const days = Math.min(365, Math.max(1, Number(els.recentDaysInput.value) || 7));
+  els.recentDaysInput.value = String(days);
+  const threshold = isoDaysAgo(days);
+  let selected = 0;
+  state.contacts.forEach((contact) => {
+    contact.checked = Boolean(contact.addedAt && contact.addedAt >= threshold);
+    if (contact.checked) selected += 1;
+  });
+  render();
+  showToast(`追加日が${days}日以内の${selected}人を選びました。`);
+}
+
 function updateSelected(patch, options = {}) {
   const contact = selectedContact();
   if (!contact) return;
@@ -790,8 +840,8 @@ function exportCsv() {
     showToast('書き出すデータがありません。');
     return;
   }
-  const headers = ['氏名', '会社名', '部署', '役職', 'メールアドレス', 'グループ', 'メモ', '出会った場所', '紹介者', '見込み業務', '文体', '送信ステータス', '配信停止', '件名', '本文'];
-  const rows = state.contacts.map((contact) => [contact.name, contact.company, contact.department, contact.title, contact.email, contact.group, contact.memo, contact.metAt, contact.referrer, CATEGORY_LABELS[detectCategory(contact)], TONE_LABELS[contact.tone || 'polite'], contact.status, contact.blocked ? 'TRUE' : '', contact.subject, contact.body]);
+  const headers = ['氏名', '会社名', '部署', '役職', 'メールアドレス', 'グループ', 'メモ', '出会った場所', '紹介者', '追加日', '見込み業務', '文体', '送信ステータス', '配信停止', '件名', '本文'];
+  const rows = state.contacts.map((contact) => [contact.name, contact.company, contact.department, contact.title, contact.email, contact.group, contact.memo, contact.metAt, contact.referrer, contact.addedAt, CATEGORY_LABELS[detectCategory(contact)], TONE_LABELS[contact.tone || 'polite'], contact.status, contact.blocked ? 'TRUE' : '', contact.subject, contact.body]);
   downloadText([headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n'), `mybridge-mail-drafts-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
   showToast('編集結果をCSVで保存しました。');
 }
@@ -956,9 +1006,9 @@ async function bulkCreateDrafts() {
     showToast('先に事務所設定タブでGoogle連携を設定してください。');
     return;
   }
-  const candidates = sendCandidates().filter((contact) => contact.status !== '下書き作成済み' && contact.status !== '送信済み');
+  const candidates = draftTargets();
   if (candidates.length === 0) {
-    showToast('下書きを作成できる相手がいません（作成済み・送信済みは除きます）。');
+    showToast('送る相手が選ばれていません。チェックボックスで選んでください（作成済み・送信済みは除きます）。');
     return;
   }
   const targets = candidates.slice(0, MAX_DRAFTS_PER_RUN);
@@ -1086,7 +1136,7 @@ function restoreState() {
   try {
     const saved = JSON.parse(localStorage.getItem('mybridge-mail-webapp') || '{}');
     if (Array.isArray(saved.contacts)) {
-      state.contacts = saved.contacts.map((contact) => ({ tone: 'polite', categoryOverride: '', ...contact }));
+      state.contacts = saved.contacts.map((contact) => ({ tone: 'polite', categoryOverride: '', checked: true, addedAt: '', ...contact }));
       state.selectedId = saved.selectedId || (state.contacts[0] && state.contacts[0].id) || null;
     }
     if (saved.office) state.office = { ...DEFAULT_OFFICE, ...saved.office };
@@ -1113,6 +1163,30 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
+function toIsoDate(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function isoDaysAgo(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return toIsoDate(date);
+}
+
+function parseDateLoose(value) {
+  const match = String(value || '').match(/(\d{4})[\/\-年.](\d{1,2})[\/\-月.](\d{1,2})/);
+  if (!match) return '';
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+  return `${match[1]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function formatDateLabel(iso) {
+  return iso ? iso.replace(/-/g, '/') : '—';
+}
+
 function openFilePicker() {
   els.csvFile.click();
 }
@@ -1126,8 +1200,8 @@ els.csvFile.addEventListener('change', async (event) => {
 
 els.importButton.addEventListener('click', openFilePicker);
 els.heroImportButton.addEventListener('click', openFilePicker);
-els.loadSampleButton.addEventListener('click', () => importCsv(SAMPLE_CSV));
-els.heroSampleButton.addEventListener('click', () => importCsv(SAMPLE_CSV));
+els.loadSampleButton.addEventListener('click', () => importCsv(buildSampleCsv()));
+els.heroSampleButton.addEventListener('click', () => importCsv(buildSampleCsv()));
 els.exportButton.addEventListener('click', exportCsv);
 els.applyMappingButton.addEventListener('click', applyColumnMap);
 els.cancelMappingButton.addEventListener('click', () => {
@@ -1183,6 +1257,21 @@ els.googleClientIdInput.addEventListener('change', () => render());
 els.googleConnectButton.addEventListener('click', connectGoogle);
 els.googleDisconnectButton.addEventListener('click', disconnectGoogle);
 els.bulkDraftButton.addEventListener('click', bulkCreateDrafts);
+els.selectAllButton.addEventListener('click', () => setAllChecked(true));
+els.clearAllButton.addEventListener('click', () => setAllChecked(false));
+els.selectRecentButton.addEventListener('click', selectRecentContacts);
+els.targetList.addEventListener('change', (event) => {
+  const input = event.target.closest('input[data-contact-id]');
+  if (!input) return;
+  const contact = state.contacts.find((item) => item.id === input.dataset.contactId);
+  if (!contact) return;
+  contact.checked = input.checked;
+  const row = input.closest('.table-row');
+  const badgeCell = row && row.lastElementChild;
+  if (badgeCell) badgeCell.innerHTML = targetRowBadge(contact, '', input.checked);
+  renderGoogleTargetsStatus();
+  saveState();
+});
 
 restoreState();
 render();
