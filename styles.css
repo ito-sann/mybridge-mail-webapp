@@ -1,3 +1,5 @@
+@charset "UTF-8";
+
 :root {
   color-scheme: light;
   --bg: #EFE8DD;
@@ -17,7 +19,7 @@
   --amber-soft: #fff2d4;
   --teal: #2f6f6b;
   --teal-soft: #e3f1ef;
-  --shadow: 0 18px 44px rgba(68, 55, 39, 0.12);
+  --shadow: 0 4px 18px rgba(68, 55, 39, 0.07);
 }
 
 * {
@@ -35,8 +37,9 @@ body {
     linear-gradient(180deg, rgba(255, 250, 242, 0.72), rgba(239, 232, 221, 0.2) 280px),
     var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-  letter-spacing: 0;
+  font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  letter-spacing: 0.01em;
+  line-height: 1.6;
 }
 
 button,
@@ -97,25 +100,29 @@ p {
 .eyebrow {
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 h1 {
-  font-size: 25px;
-  line-height: 1.08;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 h2 {
-  font-size: 21px;
-  line-height: 1.35;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-wrap: balance;
 }
 
 .brand-subtitle {
   color: var(--muted);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 .topbar-actions,
@@ -133,7 +140,7 @@ h2 {
   padding: 0 16px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -199,7 +206,7 @@ h2 {
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
   background: rgba(247, 239, 228, 0.72);
 }
 
@@ -236,12 +243,13 @@ h2 {
 .next-label {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .next-action strong {
   font-size: 15px;
-  line-height: 1.45;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 .start-panel {
@@ -261,8 +269,9 @@ h2 {
 }
 
 .start-copy h2 {
-  font-size: clamp(28px, 4vw, 52px);
-  line-height: 1.18;
+  font-size: clamp(24px, 2.8vw, 38px);
+  line-height: 1.45;
+  letter-spacing: 0.02em;
 }
 
 .start-lead {
@@ -321,7 +330,7 @@ h2 {
 
 .workspace-guide summary {
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .guide-steps {
@@ -350,7 +359,12 @@ h2 {
 .guide-steps span {
   color: var(--muted);
   font-size: 13px;
-  line-height: 1.55;
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+.guide-steps strong {
+  font-weight: 600;
 }
 
 .guide-steps.compact {
@@ -380,7 +394,7 @@ h2 {
 .panel-note {
   margin-top: 6px;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.65;
 }
 
 .mapping-grid {
@@ -394,7 +408,7 @@ h2 {
   gap: 6px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .mapping-grid label.is-required span::after {
@@ -440,7 +454,7 @@ h2 {
   border: 1px solid var(--line);
   background: var(--panel-strong);
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .view-tab.is-active {
@@ -459,10 +473,10 @@ h2 {
 
 .diagnostic-pill {
   min-height: 32px;
-  padding: 6px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 600;
   background: var(--green-soft);
   color: var(--green);
 }
@@ -507,7 +521,7 @@ h2 {
   border-radius: 999px;
   background: var(--panel-soft);
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -530,7 +544,8 @@ h2 {
 .search-box span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .search-box input {
@@ -556,6 +571,18 @@ select,
 input {
   min-height: 42px;
   padding: 0 11px;
+}
+
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(49, 95, 134, 0.14);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 textarea {
@@ -584,7 +611,7 @@ textarea {
   margin-bottom: 4px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .metric strong {
@@ -635,7 +662,7 @@ textarea {
 }
 
 .contact-name {
-  font-weight: 900;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -643,7 +670,8 @@ textarea {
 .contact-note {
   color: var(--muted);
   font-size: 13px;
-  line-height: 1.45;
+  font-weight: 400;
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
@@ -661,7 +689,7 @@ textarea {
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   color: #1e3a8a;
   background: #e8eef9;
 }
@@ -721,7 +749,7 @@ textarea {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .toggle-row input {
@@ -740,7 +768,8 @@ textarea {
   padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  font-weight: 800;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .risk-item.info {
@@ -775,7 +804,16 @@ textarea {
   gap: 6px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
+}
+
+.settings-grid input,
+.settings-grid select,
+.memo-field textarea,
+.mail-row input,
+.mail-body textarea {
+  font-weight: 400;
+  color: var(--text);
 }
 
 .memo-field textarea {
@@ -862,7 +900,7 @@ textarea {
   display: block;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .target-summary strong {
@@ -901,7 +939,7 @@ textarea {
 .preview-card span,
 .integration-card p {
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.65;
 }
 
 .preview-card pre {
@@ -939,7 +977,7 @@ textarea {
   gap: 8px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .recent-filter input {
@@ -1011,7 +1049,7 @@ textarea {
   gap: 6px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .google-guide {
@@ -1024,7 +1062,7 @@ textarea {
 
 .google-guide summary {
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .google-guide .guide-steps {
@@ -1171,7 +1209,7 @@ textarea {
   }
 
   .start-copy h2 {
-    font-size: 28px;
+    font-size: 22px;
   }
 
   .start-guide {
