@@ -8,7 +8,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
-    <input id="csvFile" class="visually-hidden" type="file" accept=".csv,text/csv">
+    <input id="csvFile" class="visually-hidden" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
 
     <div class="app-shell">
       <header class="topbar">
@@ -18,7 +18,7 @@
           <p class="brand-subtitle">名刺データから、確認しながら営業メールを整える作業台</p>
         </div>
         <div class="topbar-actions">
-          <button id="importButton" class="secondary-button" type="button">CSVを読み込む</button>
+          <button id="importButton" class="secondary-button" type="button">CSV/Excelを読み込む</button>
           <button id="loadSampleButton" class="secondary-button" type="button">サンプルで試す</button>
           <button id="exportButton" class="secondary-button" type="button">編集結果を保存</button>
         </div>
@@ -52,7 +52,7 @@
             <h2>名刺データを読み込んで、相手ごとの挨拶メールを作れます。</h2>
             <p class="start-lead">CSVを入れるだけで、見込み業務の分類、メール文面、重複チェック、送信対象の確認まで同じ画面で進められます。</p>
             <div class="start-actions">
-              <button id="heroImportButton" class="primary-button" type="button">myBridge CSVを読み込む</button>
+              <button id="heroImportButton" class="primary-button" type="button">myBridgeのCSV/Excelを読み込む</button>
               <button id="heroSampleButton" class="secondary-button" type="button">サンプルで試す</button>
             </div>
           </div>
@@ -72,8 +72,8 @@
           </div>
           <section class="csv-guide start-guide" aria-label="myBridge CSVの準備方法">
             <div>
-              <p class="eyebrow">CSVの準備</p>
-              <h2>myBridgeのデータは、ExcelかCSVで出してから読み込みます。</h2>
+              <p class="eyebrow">データの準備</p>
+              <h2>myBridgeのデータは、ExcelかCSVで出してそのまま読み込めます。</h2>
             </div>
             <ol class="guide-steps">
               <li>
@@ -85,12 +85,12 @@
                 <span>メニューからダウンロード、エクスポート、Excel出力などを選びます。</span>
               </li>
               <li>
-                <strong>CSVにする</strong>
-                <span>CSVが選べる場合はCSVを保存。Excel形式ならExcelやGoogleスプレッドシートで開き、CSV UTF-8で保存します。</span>
+                <strong>形式はそのままでOK</strong>
+                <span>Excel（.xlsx）でもCSVでも、変換せずにそのまま読み込めます。</span>
               </li>
               <li>
                 <strong>このアプリで読み込む</strong>
-                <span>上の「CSVを読み込む」から、保存したCSVファイルを選びます。</span>
+                <span>上の「CSV/Excelを読み込む」から、保存したファイルを選びます。</span>
               </li>
             </ol>
           </section>
@@ -98,12 +98,12 @@
 
         <section id="workspace" class="workspace" hidden>
           <details class="csv-guide workspace-guide">
-            <summary>myBridge CSVの作り方</summary>
+            <summary>myBridgeデータの読み込み方</summary>
             <ol class="guide-steps compact">
               <li><strong>myBridgeで名刺帳を開く</strong><span>PC版またはアプリで名刺一覧を表示します。</span></li>
               <li><strong>エクスポートを選ぶ</strong><span>ダウンロード、エクスポート、Excel出力などを選びます。</span></li>
-              <li><strong>CSVにする</strong><span>Excel形式なら、ExcelやGoogleスプレッドシートでCSV UTF-8として保存します。</span></li>
-              <li><strong>CSVを読み込む</strong><span>この画面上部の「CSVを読み込む」からファイルを選びます。</span></li>
+              <li><strong>形式はそのままでOK</strong><span>Excel（.xlsx）でもCSVでも、変換せずに読み込めます。</span></li>
+              <li><strong>読み込む</strong><span>この画面上部の「CSV/Excelを読み込む」からファイルを選びます。</span></li>
             </ol>
           </details>
 
@@ -354,6 +354,13 @@
                 <label><span>電話・住所・URL</span><input id="senderContactInput" type="text"></label>
                 <label><span>配信停止文</span><input id="optOutInput" type="text"></label>
               </div>
+              <section class="integration-card">
+                <h3>送信記録の引き継ぎ</h3>
+                <p id="historyStatus">まだ記録はありません。</p>
+                <div class="action-row">
+                  <button id="clearHistoryButton" class="secondary-button" type="button">記録を全部消す</button>
+                </div>
+              </section>
               <section class="integration-card">
                 <h3>Google連携（Gmail下書きの一括作成）</h3>
                 <p id="googleSettingsStatus">未連携です。クライアントIDを設定して「Googleと連携する」を押すと、送信対象タブから全員分のGmail下書きを一括作成できます。名刺データは自分のGmailにしか送られません。</p>

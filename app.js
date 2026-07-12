@@ -86,6 +86,7 @@ const state = {
   templates: [...DEFAULT_TEMPLATES],
   googleClientId: '',
   googleEmail: '',
+  history: {},
 };
 
 const googleToken = { value: '', expiresAt: 0 };
@@ -170,6 +171,8 @@ const els = {
   clearAllButton: document.getElementById('clearAllButton'),
   recentDaysInput: document.getElementById('recentDaysInput'),
   selectRecentButton: document.getElementById('selectRecentButton'),
+  historyStatus: document.getElementById('historyStatus'),
+  clearHistoryButton: document.getElementById('clearHistoryButton'),
   toast: document.getElementById('toast'),
 };
 
@@ -226,13 +229,17 @@ function buildAutoMap(headers) {
 }
 
 function importCsv(text) {
-  const rows = parseCsv(text);
+  importRows(parseCsv(text));
+}
+
+function importRows(sourceRows) {
+  const rows = sourceRows.filter((items) => items.some((item) => String(item).trim() !== ''));
   if (rows.length < 2) {
-    showToast('CSVにデータ行がありません。');
+    showToast('データ行がありません。');
     return;
   }
 
-  const headers = rows[0].map((header) => header.trim());
+  const headers = rows[0].map((header) => String(header).trim());
   const map = buildAutoMap(headers);
   state.pendingRows = rows;
   state.pendingHeaders = headers;
@@ -248,7 +255,40 @@ function importCsv(text) {
   }
 
   loadRowsWithMap(rows, map);
-  showToast(`${state.contacts.length}件を読み込みました。`);
+  showToast(importSummaryMessage());
+}
+
+function importSummaryMessage() {
+  const base = `${state.contacts.length}件を読み込みました。`;
+  return lastImportCarryover > 0 ? `${base}${lastImportCarryover}件に送信済み・配信停止の記録を引き継ぎました。` : base;
+}
+
+let xlsxLoader = null;
+
+function loadXlsxLibrary() {
+  if (window.XLSX) return Promise.resolve();
+  if (!xlsxLoader) {
+    xlsxLoader = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = './xlsx.full.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => {
+        xlsxLoader = null;
+        reject(new Error('Excel読み込み用の部品を読み込めませんでした。通信環境を確認してください。'));
+      };
+      document.head.append(script);
+    });
+  }
+  return xlsxLoader;
+}
+
+async function readExcelRows(file) {
+  await loadXlsxLibrary();
+  const workbook = window.XLSX.read(await file.arrayBuffer(), { cellDates: true });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) throw new Error('Excelファイルにシートが見つかりません。');
+  const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd', defval: '' });
+  return rows.map((row) => row.map((cell) => String(cell == null ? '' : cell)));
 }
 
 function requiredMissing(map) {
@@ -285,7 +325,7 @@ function applyColumnMap() {
     return;
   }
   loadRowsWithMap(state.pendingRows, state.columnMap);
-  showToast(`${state.contacts.length}件を読み込みました。`);
+  showToast(importSummaryMessage());
 }
 
 function loadRowsWithMap(rows, map) {
@@ -302,7 +342,26 @@ function loadRowsWithMap(rows, map) {
   render();
 }
 
+let lastImportCarryover = 0;
+
+function applyHistoryToContact(contact) {
+  const email = String(contact.email || '').trim().toLowerCase();
+  const record = state.history[email];
+  if (!record) return false;
+  let applied = false;
+  if (!contact.status && record.status) {
+    contact.status = record.status;
+    applied = true;
+  }
+  if (record.blocked && !contact.blocked) {
+    contact.blocked = true;
+    applied = true;
+  }
+  return applied;
+}
+
 function rowsToContacts(rows, map) {
+  lastImportCarryover = 0;
   const headers = rows[0].map((header) => header.trim());
   return rows.slice(1).map((row, index) => {
     const record = {};
@@ -330,6 +389,7 @@ function rowsToContacts(rows, map) {
       addedAt: parseDateLoose(valueFromMap(record, map.addedAt)) || toIsoDate(new Date()),
       checked: true,
     };
+    if (applyHistoryToContact(contact)) lastImportCarryover += 1;
     if (!contact.subject || !contact.body) regenerateEmail(contact);
     return contact;
   }).filter((contact) => contact.name || contact.company || contact.email);
@@ -699,6 +759,10 @@ function renderSettings() {
   els.optOutInput.value = state.office.optOut;
   els.googleClientIdInput.value = state.googleClientId;
   els.googleDisconnectButton.hidden = !state.googleEmail;
+  const historyCount = Object.keys(state.history).length;
+  els.historyStatus.textContent = historyCount > 0
+    ? `${historyCount}件のメールアドレスについて「送信済み・作成済み・配信停止」を記憶しています。新しいCSVやExcelを読み込んでも自動で引き継がれるので、同じ人に二重に下書きを作りません。`
+    : 'まだ記録はありません。下書きを作成したり配信停止にしたりすると、相手のメールアドレス単位で自動的に記憶されます。';
   if (state.googleEmail) {
     els.googleSettingsStatus.textContent = `連携中: ${state.googleEmail}。送信対象タブの「Gmailに下書きを一括作成」が使えます。`;
   } else if (state.googleClientId.trim()) {
@@ -1121,7 +1185,39 @@ function resetOfficeSettings() {
   showToast('事務所情報を初期値に戻しました。');
 }
 
+function syncHistory() {
+  const rank = { '': 0, '対象外': 1, '下書き作成済み': 2, '送信済み': 3 };
+  const seen = new Map();
+  state.contacts.forEach((contact) => {
+    const email = String(contact.email || '').trim().toLowerCase();
+    if (!isValidEmail(email)) return;
+    const status = rank[contact.status] ? contact.status : '';
+    const prev = seen.get(email) || { status: '', blocked: false };
+    seen.set(email, {
+      status: (rank[status] || 0) > (rank[prev.status] || 0) ? status : prev.status,
+      blocked: prev.blocked || Boolean(contact.blocked),
+    });
+  });
+  seen.forEach((value, email) => {
+    if (!value.status && !value.blocked) delete state.history[email];
+    else state.history[email] = { ...value, updatedAt: toIsoDate(new Date()) };
+  });
+}
+
+function clearHistory() {
+  const count = Object.keys(state.history).length;
+  if (count === 0) {
+    showToast('引き継ぎ記録はありません。');
+    return;
+  }
+  if (!window.confirm(`${count}件の引き継ぎ記録（送信済み・配信停止）を全部消します。よろしいですか？`)) return;
+  state.history = {};
+  render();
+  showToast('引き継ぎ記録を消しました。いま画面にあるデータの記録は残ります。');
+}
+
 function saveState() {
+  syncHistory();
   localStorage.setItem('mybridge-mail-webapp', JSON.stringify({
     contacts: state.contacts,
     selectedId: state.selectedId,
@@ -1129,6 +1225,7 @@ function saveState() {
     templates: state.templates,
     googleClientId: state.googleClientId,
     googleEmail: state.googleEmail,
+    history: state.history,
   }));
 }
 
@@ -1143,6 +1240,7 @@ function restoreState() {
     if (Array.isArray(saved.templates) && saved.templates.length > 0) state.templates = saved.templates;
     if (typeof saved.googleClientId === 'string') state.googleClientId = saved.googleClientId;
     if (typeof saved.googleEmail === 'string') state.googleEmail = saved.googleEmail;
+    if (saved.history && typeof saved.history === 'object' && !Array.isArray(saved.history)) state.history = saved.history;
   } catch (error) {
     localStorage.removeItem('mybridge-mail-webapp');
   }
@@ -1194,7 +1292,15 @@ function openFilePicker() {
 els.csvFile.addEventListener('change', async (event) => {
   const file = event.target.files[0];
   if (!file) return;
-  importCsv(await file.text());
+  try {
+    if (/\.(xlsx|xls)$/i.test(file.name)) {
+      importRows(await readExcelRows(file));
+    } else {
+      importCsv(await file.text());
+    }
+  } catch (error) {
+    showToast(error.message || 'ファイルを読み込めませんでした。');
+  }
   event.target.value = '';
 });
 
@@ -1260,6 +1366,7 @@ els.bulkDraftButton.addEventListener('click', bulkCreateDrafts);
 els.selectAllButton.addEventListener('click', () => setAllChecked(true));
 els.clearAllButton.addEventListener('click', () => setAllChecked(false));
 els.selectRecentButton.addEventListener('click', selectRecentContacts);
+els.clearHistoryButton.addEventListener('click', clearHistory);
 els.targetList.addEventListener('change', (event) => {
   const input = event.target.closest('input[data-contact-id]');
   if (!input) return;
