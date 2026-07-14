@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=20260712">
+    <link rel="stylesheet" href="./styles.css?v=20260712b">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
@@ -137,6 +137,7 @@
                 <button class="view-tab" type="button" data-view="targets">送信対象</button>
                 <button class="view-tab" type="button" data-view="preview">全員プレビュー</button>
                 <button class="view-tab" type="button" data-view="templates">テンプレ</button>
+                <button class="view-tab" type="button" data-view="quiz">クイズ</button>
                 <button class="view-tab" type="button" data-view="settings">事務所設定</button>
               </div>
               <div id="diagnosticsPanel" class="diagnostics-panel"></div>
@@ -345,6 +346,27 @@
               <div id="templatePreview" class="preview-list"></div>
             </article>
 
+            <article id="quizPanel" class="side-panel" hidden>
+              <header class="panel-header">
+                <div>
+                  <p class="eyebrow">Quiz</p>
+                  <h2>名刺クイズ</h2>
+                  <p class="panel-note">名刺データから4択クイズを出題します。間違えた人ほどよく出ます。</p>
+                </div>
+                <span id="quizScoreLabel" class="count-label">今回 0/0</span>
+              </header>
+              <div class="quiz-options">
+                <label class="toggle-row">
+                  <input id="quizRecentToggle" type="checkbox">
+                  <span>追加日が</span>
+                </label>
+                <input id="quizRecentDays" type="number" min="1" max="365" value="7" aria-label="日数">
+                <span class="quiz-options-note">日以内の人だけ出題</span>
+                <button id="quizStartButton" class="primary-button" type="button">クイズを始める</button>
+              </div>
+              <div id="quizArea" class="quiz-area"></div>
+            </article>
+
             <article id="settingsPanel" class="side-panel" hidden>
               <header class="panel-header">
                 <div>
@@ -395,6 +417,6 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=20260712"></script>
+    <script src="./app.js?v=20260712b"></script>
   </body>
 </html>

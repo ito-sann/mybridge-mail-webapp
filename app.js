@@ -87,6 +87,14 @@ const state = {
   googleClientId: '',
   googleEmail: '',
   history: {},
+  quizStats: {},
+};
+
+const quizSession = {
+  active: false,
+  current: null,
+  sessionCorrect: 0,
+  sessionTotal: 0,
 };
 
 const googleToken = { value: '', expiresAt: 0 };
@@ -173,6 +181,12 @@ const els = {
   selectRecentButton: document.getElementById('selectRecentButton'),
   historyStatus: document.getElementById('historyStatus'),
   clearHistoryButton: document.getElementById('clearHistoryButton'),
+  quizPanel: document.getElementById('quizPanel'),
+  quizScoreLabel: document.getElementById('quizScoreLabel'),
+  quizRecentToggle: document.getElementById('quizRecentToggle'),
+  quizRecentDays: document.getElementById('quizRecentDays'),
+  quizStartButton: document.getElementById('quizStartButton'),
+  quizArea: document.getElementById('quizArea'),
   toast: document.getElementById('toast'),
 };
 
@@ -659,6 +673,8 @@ function renderTabs() {
   els.previewPanel.hidden = state.activeView !== 'preview';
   els.templatesPanel.hidden = state.activeView !== 'templates';
   els.settingsPanel.hidden = state.activeView !== 'settings';
+  els.quizPanel.hidden = state.activeView !== 'quiz';
+  if (state.activeView === 'quiz') renderQuiz();
 }
 
 function renderEditor() {
@@ -1133,6 +1149,245 @@ function renderBulkResult(created, errors, remaining) {
   els.bulkResult.hidden = items.length === 0;
 }
 
+function quizKey(contact) {
+  const email = String(contact.email || '').trim().toLowerCase();
+  if (isValidEmail(email)) return email;
+  return `${contact.name}|${contact.company}`;
+}
+
+function quizStatsFor(key) {
+  return state.quizStats[key] || { correct: 0, wrong: 0, name: '' };
+}
+
+function uniqueQuizValues(values, exclude) {
+  const seen = new Set();
+  const result = [];
+  values.forEach((value) => {
+    const text = String(value || '').trim();
+    if (!text || text === exclude || seen.has(text)) return;
+    seen.add(text);
+    result.push(text);
+  });
+  return result;
+}
+
+function shuffleArray(items) {
+  const array = [...items];
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function quizPool() {
+  const useRecent = els.quizRecentToggle.checked;
+  const days = Math.min(365, Math.max(1, Number(els.quizRecentDays.value) || 7));
+  const threshold = useRecent ? isoDaysAgo(days) : null;
+  const seen = new Set();
+  return state.contacts.filter((contact) => {
+    if (!contact.name) return false;
+    if (threshold && !(contact.addedAt && contact.addedAt >= threshold)) return false;
+    const key = quizKey(contact);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function pickQuizContact(pool) {
+  const lastKey = quizSession.current ? quizSession.current.key : '';
+  const candidates = pool.length > 1 ? pool.filter((contact) => quizKey(contact) !== lastKey) : pool;
+  const weights = candidates.map((contact) => {
+    const stats = quizStatsFor(quizKey(contact));
+    return (stats.wrong + 1) / (stats.correct + 1);
+  });
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  let roll = Math.random() * total;
+  for (let index = 0; index < candidates.length; index += 1) {
+    roll -= weights[index];
+    if (roll <= 0) return candidates[index];
+  }
+  return candidates[candidates.length - 1];
+}
+
+function buildQuizQuestion(contact, pool) {
+  const otherNames = uniqueQuizValues(pool.map((item) => item.name), contact.name);
+  const otherCompanies = uniqueQuizValues(pool.map((item) => item.company), contact.company);
+  const otherPlaces = uniqueQuizValues(pool.map((item) => item.metAt), contact.metAt);
+  const types = [];
+  if (contact.company && otherNames.length >= 1) types.push('whoByCompany');
+  if (contact.memo && contact.memo.trim().length >= 4 && otherNames.length >= 1) types.push('whoByMemo');
+  if (contact.company && otherCompanies.length >= 1) types.push('companyByName');
+  if (contact.metAt && otherPlaces.length >= 1) types.push('metAtByName');
+  if (types.length === 0) return null;
+
+  const type = types[Math.floor(Math.random() * types.length)];
+  let questionText = '';
+  let correct = '';
+  let distractors = [];
+  if (type === 'whoByCompany') {
+    const title = contact.title ? `（${contact.title}）` : '';
+    questionText = `「${contact.company}」${title}の人は誰でしょう？`;
+    correct = contact.name;
+    distractors = otherNames;
+  } else if (type === 'whoByMemo') {
+    questionText = `こんなメモを残した相手は誰でしょう？\n『${contact.memo.trim()}』`;
+    correct = contact.name;
+    distractors = otherNames;
+  } else if (type === 'companyByName') {
+    questionText = `${contact.name}さんの会社はどれでしょう？`;
+    correct = contact.company;
+    distractors = otherCompanies;
+  } else {
+    questionText = `${contact.name}さんと出会った場所はどこでしょう？`;
+    correct = contact.metAt;
+    distractors = otherPlaces;
+  }
+
+  const choices = shuffleArray([correct, ...shuffleArray(distractors).slice(0, 3)]);
+  return {
+    key: quizKey(contact),
+    contactId: contact.id,
+    type,
+    questionText,
+    choices,
+    correctIndex: choices.indexOf(correct),
+    answeredIndex: -1,
+  };
+}
+
+const QUIZ_TYPE_LABELS = {
+  whoByCompany: '会社から人を当てる',
+  whoByMemo: '会話メモから人を当てる',
+  companyByName: '人から会社を当てる',
+  metAtByName: '出会った場所を当てる',
+};
+
+function startQuiz() {
+  const pool = quizPool();
+  if (pool.length < 2) {
+    showToast('クイズには名刺が2件以上必要です。読み込みや絞り込みを確認してください。');
+    return;
+  }
+  quizSession.active = true;
+  quizSession.sessionCorrect = 0;
+  quizSession.sessionTotal = 0;
+  quizSession.current = null;
+  nextQuizQuestion();
+}
+
+function nextQuizQuestion() {
+  const pool = quizPool();
+  if (pool.length < 2) {
+    quizSession.active = false;
+    quizSession.current = null;
+    renderQuiz();
+    showToast('出題できる名刺が足りなくなりました。');
+    return;
+  }
+  let question = null;
+  for (let attempt = 0; attempt < 12 && !question; attempt += 1) {
+    question = buildQuizQuestion(pickQuizContact(pool), pool);
+  }
+  if (!question) {
+    quizSession.active = false;
+    quizSession.current = null;
+    renderQuiz();
+    showToast('会社名・メモ・出会った場所のいずれかが入った名刺が必要です。');
+    return;
+  }
+  quizSession.current = question;
+  renderQuiz();
+}
+
+function answerQuiz(index) {
+  const current = quizSession.current;
+  if (!current || current.answeredIndex >= 0) return;
+  current.answeredIndex = index;
+  quizSession.sessionTotal += 1;
+  const contact = state.contacts.find((item) => item.id === current.contactId);
+  const stats = { ...quizStatsFor(current.key) };
+  stats.name = contact ? contact.name : stats.name;
+  if (index === current.correctIndex) {
+    quizSession.sessionCorrect += 1;
+    stats.correct += 1;
+  } else {
+    stats.wrong += 1;
+  }
+  state.quizStats[current.key] = stats;
+  saveState();
+  renderQuiz();
+}
+
+function quizRevealHtml(contact) {
+  if (!contact) return '';
+  const lines = [];
+  const roleLine = [contact.company, contact.title].filter(Boolean).join('・');
+  lines.push(`<strong>${escapeHtml(contact.name)}</strong>${roleLine ? `<span>${escapeHtml(roleLine)}</span>` : ''}`);
+  const meta = [];
+  if (contact.metAt) meta.push(`出会った場所: ${contact.metAt}`);
+  if (contact.referrer) meta.push(`紹介者: ${formatReferrer(contact.referrer)}`);
+  if (meta.length > 0) lines.push(`<span>${escapeHtml(meta.join(' ／ '))}</span>`);
+  if (contact.memo) lines.push(`<span>メモ: ${escapeHtml(contact.memo)}</span>`);
+  lines.push(`<span class="quiz-hint">次の話題ヒント: ${escapeHtml(CATEGORY_SUBJECTS[detectCategory(contact)])}の話</span>`);
+  return `<div class="quiz-reveal">${lines.join('')}</div>`;
+}
+
+function quizWeakList() {
+  return Object.values(state.quizStats)
+    .filter((stats) => stats.name && stats.correct + stats.wrong >= 2)
+    .map((stats) => ({ ...stats, rate: stats.correct / (stats.correct + stats.wrong) }))
+    .sort((a, b) => a.rate - b.rate)
+    .slice(0, 3);
+}
+
+function renderQuiz() {
+  els.quizScoreLabel.textContent = `今回 ${quizSession.sessionCorrect}/${quizSession.sessionTotal}`;
+  els.quizStartButton.textContent = quizSession.active ? '最初からやり直す' : 'クイズを始める';
+
+  if (!quizSession.active || !quizSession.current) {
+    const pool = quizPool();
+    const parts = [];
+    if (state.contacts.length === 0) {
+      parts.push('<div class="risk-item warn">まず名刺データを読み込んでください。</div>');
+    } else {
+      parts.push(`<div class="quiz-card"><p class="quiz-type">準備OK</p><h3 class="quiz-question">いまの条件で出題できるのは ${pool.length}人 です。</h3><p class="panel-note">「クイズを始める」を押すと4択クイズが始まります。間違えた人ほどよく出題されます。</p></div>`);
+      const weak = quizWeakList();
+      if (weak.length > 0) {
+        const items = weak.map((stats) => `<span>${escapeHtml(stats.name)}（正解率${Math.round(stats.rate * 100)}%）</span>`).join('');
+        parts.push(`<div class="quiz-card"><p class="quiz-type">苦手な人</p><div class="quiz-weak">${items}</div></div>`);
+      }
+    }
+    els.quizArea.innerHTML = parts.join('');
+    return;
+  }
+
+  const current = quizSession.current;
+  const answered = current.answeredIndex >= 0;
+  const contact = state.contacts.find((item) => item.id === current.contactId);
+  const choicesHtml = current.choices.map((choice, index) => {
+    const classes = ['quiz-choice'];
+    if (answered && index === current.correctIndex) classes.push('is-correct');
+    if (answered && index === current.answeredIndex && index !== current.correctIndex) classes.push('is-wrong');
+    return `<button type="button" class="${classes.join(' ')}" data-quiz-choice="${index}"${answered ? ' disabled' : ''}>${escapeHtml(choice)}</button>`;
+  }).join('');
+
+  const parts = [`<div class="quiz-card">
+    <p class="quiz-type">${QUIZ_TYPE_LABELS[current.type]}</p>
+    <h3 class="quiz-question">${escapeHtml(current.questionText).replace(/\n/g, '<br>')}</h3>
+    <div class="quiz-choices">${choicesHtml}</div>
+  </div>`];
+
+  if (answered) {
+    const correct = current.answeredIndex === current.correctIndex;
+    parts.push(`<div class="risk-item ${correct ? 'info' : 'danger'}">${correct ? '正解！' : `不正解… 正解は「${escapeHtml(current.choices[current.correctIndex])}」でした。`}</div>`);
+    parts.push(quizRevealHtml(contact));
+    parts.push('<div class="action-row"><button id="quizNextButton" class="primary-button" type="button">次の問題</button></div>');
+  }
+  els.quizArea.innerHTML = parts.join('');
+}
+
 async function copyEmail() {
   const contact = selectedContact();
   if (!contact) return;
@@ -1226,6 +1481,7 @@ function saveState() {
     googleClientId: state.googleClientId,
     googleEmail: state.googleEmail,
     history: state.history,
+    quizStats: state.quizStats,
   }));
 }
 
@@ -1241,6 +1497,7 @@ function restoreState() {
     if (typeof saved.googleClientId === 'string') state.googleClientId = saved.googleClientId;
     if (typeof saved.googleEmail === 'string') state.googleEmail = saved.googleEmail;
     if (saved.history && typeof saved.history === 'object' && !Array.isArray(saved.history)) state.history = saved.history;
+    if (saved.quizStats && typeof saved.quizStats === 'object' && !Array.isArray(saved.quizStats)) state.quizStats = saved.quizStats;
   } catch (error) {
     localStorage.removeItem('mybridge-mail-webapp');
   }
@@ -1367,6 +1624,17 @@ els.selectAllButton.addEventListener('click', () => setAllChecked(true));
 els.clearAllButton.addEventListener('click', () => setAllChecked(false));
 els.selectRecentButton.addEventListener('click', selectRecentContacts);
 els.clearHistoryButton.addEventListener('click', clearHistory);
+els.quizStartButton.addEventListener('click', startQuiz);
+els.quizRecentToggle.addEventListener('change', () => { if (!quizSession.active) renderQuiz(); });
+els.quizRecentDays.addEventListener('change', () => { if (!quizSession.active) renderQuiz(); });
+els.quizArea.addEventListener('click', (event) => {
+  const choice = event.target.closest('button[data-quiz-choice]');
+  if (choice) {
+    answerQuiz(Number(choice.dataset.quizChoice));
+    return;
+  }
+  if (event.target.closest('#quizNextButton')) nextQuizQuestion();
+});
 els.targetList.addEventListener('change', (event) => {
   const input = event.target.closest('input[data-contact-id]');
   if (!input) return;

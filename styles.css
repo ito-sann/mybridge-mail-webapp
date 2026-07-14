@@ -1097,6 +1097,142 @@ textarea {
   .table-row.with-check {
     grid-template-columns: auto minmax(0, 1fr);
   }
+
+  .quiz-choices {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-options .primary-button {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.quiz-options {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.quiz-options input[type='number'] {
+  width: 76px;
+  min-height: 38px;
+  text-align: center;
+}
+
+.quiz-options .primary-button {
+  margin-left: auto;
+}
+
+.quiz-area {
+  display: grid;
+  gap: 14px;
+}
+
+.quiz-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  display: grid;
+  gap: 14px;
+}
+
+.quiz-type {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quiz-question {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.quiz-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quiz-choice {
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 500;
+  text-align: left;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.quiz-choice:hover:not(:disabled) {
+  border-color: var(--blue);
+  background: #eef4f9;
+}
+
+.quiz-choice.is-correct {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.quiz-choice.is-wrong {
+  border-color: var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+  opacity: 1;
+}
+
+.quiz-reveal {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  display: grid;
+  gap: 6px;
+}
+
+.quiz-reveal span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.quiz-reveal .quiz-hint {
+  color: var(--blue-dark);
+  font-weight: 600;
+}
+
+.quiz-weak {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quiz-weak span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .toast {
